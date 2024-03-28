@@ -943,6 +943,7 @@ CONTAINS
     REAL(num) :: calculate_photon_energy
     REAL(num), INTENT(IN) :: rand_seed, eta, generating_gamma
     REAL(num) :: eta_min, chi_tmp, chi_final  
+    INTEGER :: io, iu
 
     eta_min = 10.0_num**MINVAL(log_eta)
     IF (eta < eta_min) THEN ! Extrapolate downwards with chi \propto eta^2
@@ -960,7 +961,7 @@ CONTAINS
     IF (rank == 0) THEN
       DO iu = 1, nio_units ! Print to stdout and to file
         io = io_units(iu)
-        WRITE(io,*) 'Generating photon from chi_e=', eta, ' with chi_gamma=', chi
+        WRITE(io,*) 'Generating photon from chi_e=', eta, ' with chi_gamma=', chi_final
       END DO
     END IF
 
