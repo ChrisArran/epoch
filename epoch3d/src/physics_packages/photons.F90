@@ -957,6 +957,13 @@ CONTAINS
     calculate_photon_energy = (2.0_num * chi_final / eta) * generating_gamma &
         * m0 * c**2
 
+    IF (rank == 0) THEN
+      DO iu = 1, nio_units ! Print to stdout and to file
+        io = io_units(iu)
+        WRITE(io,*) 'Generating photon from chi_e=', eta, ' with chi_gamma=', chi
+      END DO
+    END IF
+
   END FUNCTION calculate_photon_energy
 
 
