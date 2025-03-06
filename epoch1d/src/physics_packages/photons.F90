@@ -1085,7 +1085,7 @@ CONTAINS
         generating_photon)
       DEALLOCATE(generating_photon)
     ELSE
-      generating_photon%optical_depth = reset_optical_depth()
+      generating_photon%optical_depth = generating_photon%optical_depth + reset_optical_depth()
     ENDIF
 
   END SUBROUTINE generate_pair
