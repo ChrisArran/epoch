@@ -58,8 +58,6 @@ CONTAINS
     ! Loop through all species which are set to recombine
     DO ispecies = 1, n_species
       IF (species_list(ispecies)%recombine) THEN
-
-        use_recombination = .TRUE.
         use_particle_lists = .TRUE.
         species_list(ispecies)%make_secondary_list = .TRUE.
         species_list(species_list(ispecies)%recombine_to_species) &

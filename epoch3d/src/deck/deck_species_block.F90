@@ -236,9 +236,11 @@ CONTAINS
         END DO
       END IF
 
-      ! Check for split particle species, which need secondary lists
       DO i = 1, n_species
+        ! Check for split particle species, which need secondary lists
         IF (species_list(i)%split) species_list(i)%make_secondary_list = .TRUE.
+        ! Check if recombination is being used
+        use_recombination = use_recombination .OR. species_list(i)%recombine
       END DO
     END IF
 

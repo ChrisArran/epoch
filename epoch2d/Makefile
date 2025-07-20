@@ -493,7 +493,7 @@ deck_particle_probe_block.o: deck_particle_probe_block.F90 probes.o \
   strings_advanced.o utilities.o
 deck_qed_block.o: deck_qed_block.F90 strings_advanced.o utilities.o
 deck_species_block.o: deck_species_block.F90 partlist.o setup.o simple_io.o \
-  strings_advanced.o utilities.o
+  shared_data.o strings_advanced.o utilities.o
 deck_stencil_block.o: deck_stencil_block.f90 fields.o strings_advanced.o
 deck_subset_block.o: deck_subset_block.F90 particle_id_hash.o \
   strings_advanced.o utilities.o
