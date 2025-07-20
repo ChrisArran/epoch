@@ -15,12 +15,12 @@
 !
 !-------------------------------------------------------------------------------
 !
-! This module contains subroutines used to calculate recombination, provided 
+! This module contains subroutines used to calculate recombination, provided
 ! recombination tables have been provided for a given atomic number and charge
 ! state.
 !
-! Here we consider dielectronic, radiative and three-body recombination. The 
-! electron temperature in a cell determines the recombination rates, which can 
+! Here we consider dielectronic, radiative and three-body recombination. The
+! electron temperature in a cell determines the recombination rates, which can
 ! be used to obtain a recombination cross-section. Each electron in the cell has
 ! a chance of triggering recombination. Radiative rates are taken from FLYCHK,
 ! as are most dielectronic rates (some include contributions from JAC). The
@@ -32,7 +32,7 @@ MODULE recombination
   USE calc_df
   USE collisions
   USE collision_ionise
-  
+
   IMPLICIT NONE
 
   TYPE(interpolation_state), SAVE :: last_table_state_dr, last_table_state_rr
@@ -47,7 +47,7 @@ CONTAINS
   SUBROUTINE setup_recombination_tables
 
     ! This subroutine extracts di-electric recombination rates from files as a
-    ! function of electron temperature, and saves them to the species in 1D 
+    ! function of electron temperature, and saves them to the species in 1D
     ! arrays. Same is done for radiative recombination.
     !
     ! Three-body recombination requires collisional ionisation cross-sections,
@@ -58,7 +58,7 @@ CONTAINS
     ! Loop through all species which are set to recombine
     DO ispecies = 1, n_species
       IF (species_list(ispecies)%recombine) THEN
-        
+
         use_recombination = .TRUE.
         use_particle_lists = .TRUE.
         species_list(ispecies)%make_secondary_list = .TRUE.
@@ -84,13 +84,13 @@ CONTAINS
       END DO
     END IF
 
-    ! If three-body recombination is present, but not collisional ionisation, 
+    ! If three-body recombination is present, but not collisional ionisation,
     ! load the collisional ionisation cross section scripts anyway
     IF (use_recombination .AND. use_three_body_recombination &
         .AND. .NOT. use_collisional_ionisation) CALL setup_coll_ionise_tables
 
     dt_recombine = REAL(recombine_n_step, num) * dt
-        
+
   END SUBROUTINE setup_recombination_tables
 
 
@@ -133,8 +133,8 @@ CONTAINS
     ! !   1 7.596000e-59 5.057000e-38 3.589000e-31 ...
     ! !   2 1.000000e-76 2.412000e-49 7.918000e-39 ...
     ! !   3 1.000000e-76 1.000000e-76 1.000000e-76 ...
-    ! 
-    ! In this example: 
+    !
+    ! In this example:
     ! ! Top-left number 36 gives the number of temperature samples
     ! ! Numbers after 36 give temperature sample points in Kelvin
     ! ! Then we have the rates: left column for initial charge of transition
@@ -143,7 +143,7 @@ CONTAINS
         FILE = TRIM(physics_table_location)  // "/dr_rates/"&
         // file_name, &
         STATUS = 'OLD')
-    
+
     ! Read the number of temperature entries, ignoring first header line
     READ(lu,*)
     READ(lu,*) entries
@@ -209,13 +209,13 @@ CONTAINS
 
     ! Attempt to read data file. Typical format (reduced dr_03.dat):
     ! ! n   Temperature [K]
-    ! !  36 5.802259e+03 1.160452e+04 1.740678e+04 ... 
+    ! !  36 5.802259e+03 1.160452e+04 1.740678e+04 ...
     ! ! Q   Rate [m3/s]
     ! !   1 3.984000e-19 2.381000e-19 1.724000e-19 ...
     ! !   2 3.318000e-18 2.116000e-18 1.610000e-18 ...
     ! !   3 8.023000e-18 5.281000e-18 4.099000e-18 ...
-    ! 
-    ! In this example: 
+    !
+    ! In this example:
     ! ! Top-left number 36 gives the number of temperature samples
     ! ! Numbers after 36 give temperature sample points in Kelvin
     ! ! Then we have the rates: left column for initial charge of transition
@@ -224,7 +224,7 @@ CONTAINS
         FILE = TRIM(physics_table_location)  // "/rr_rates/"&
         // file_name, &
         STATUS = 'OLD')
-    
+
     ! Read the number of temperature entries, ignoring first header line
     READ(lu,*)
     READ(lu,*) entries
@@ -261,10 +261,10 @@ CONTAINS
     ! This subroutine is called by the main PIC loop, and triggers the
     ! recombination calculation. The species_list is cycled through to identify
     ! pairs of valid electron and ion species which can recombine, and a
-    ! subroutine is called to sample the recombination. Ions are added to the 
+    ! subroutine is called to sample the recombination. Ions are added to the
     ! correct species list, and electron macro-particles are removed
     !
-    ! This subroutine can perform dielectronic, radiatiave, and 3-body 
+    ! This subroutine can perform dielectronic, radiatiave, and 3-body
     ! recombination
 
     INTEGER :: ispecies, jspecies
@@ -274,7 +274,7 @@ CONTAINS
     TYPE(particle_list) :: list_i_recombined
     LOGICAL :: i_is_ion, i_is_electron, calc_recombination
 
-    ! Only run this type of recombination for dielectronic, three-body or 
+    ! Only run this type of recombination for dielectronic, three-body or
     ! radiative recombination
     IF (.NOT. use_dielectronic_recombination .AND. .NOT. &
       use_radiative_recombination .AND. .NOT. use_three_body_recombination) &
@@ -353,7 +353,7 @@ CONTAINS
               CALL calculate_alpha_and_ne(ion_species, ix, iy, iz)
             END IF
 
-            ! Apply recombination, moving recombined ions to the new particle 
+            ! Apply recombination, moving recombined ions to the new particle
             ! lists
             CALL recombine_ei(ion_species, electron_species, &
                 species_list(electron_species)%secondary_list(ix,iy,iz), &
@@ -399,7 +399,7 @@ CONTAINS
     ! Ignore collisions from empty species
     e_count = list_e_in%count
     ion_count = list_i_in%count
-    IF (e_count == 0 .OR. ion_count == 0) RETURN 
+    IF (e_count == 0 .OR. ion_count == 0) RETURN
 
     ! Allocate arrays to track which electrons and ions are involved in
     ! recombination events
@@ -432,7 +432,7 @@ CONTAINS
     sum_we = 0
     mean_el_p2 = 0.0_num
     mean_el_pxe = 0.0_num
-    DO i_el = 1, e_count 
+    DO i_el = 1, e_count
 #ifndef PER_SPECIES_WEIGHT
       el_weight = electron%weight
 #endif
@@ -458,7 +458,7 @@ CONTAINS
     DO i_el = 1, e_count
 
       ! Some macro-electrons must collide with many macro-ions to create the
-      ! right number of recombined ions, this loop allows for multiple 
+      ! right number of recombined ions, this loop allows for multiple
       ! collisions
       uncombined_frac = 1.0_num
       e_collide_again = .TRUE.
@@ -504,7 +504,7 @@ CONTAINS
               species_list(ion_species)%recombine_array_size_dr, &
               species_list(ion_species)%recombine_temp_dr, &
               species_list(ion_species)%recombine_rate_dr, last_table_state_dr)
-          recombine_rate = recombine_rate + ion_rate_dr   
+          recombine_rate = recombine_rate + ion_rate_dr
         END IF
         IF (use_radiative_recombination) THEN
           ion_rate_rr = find_value_from_table_1d_recombine(el_temp, &
@@ -519,7 +519,7 @@ CONTAINS
         END IF
 
 #ifdef TRANSITION_RATES
-        ion%rate_dr = ion_rate_dr 
+        ion%rate_dr = ion_rate_dr
         ion%rate_rr = ion_rate_rr
         ion%rate_3br = ion_rate_3br
 #endif
@@ -542,7 +542,7 @@ CONTAINS
           ! Sample the probability of recombination of the macro-ion
           recombine_ion = (random() <= recombine_no / ion_weight)
 
-          ! Electron has created all the recombinations it will (if any), do not 
+          ! Electron has created all the recombinations it will (if any), do not
           ! re-collide
           e_collide_again = .FALSE.
         END IF
@@ -558,7 +558,7 @@ CONTAINS
         END IF
 
         ! Sample electron recombination
-        IF (.NOT. e_collide_again) THEN 
+        IF (.NOT. e_collide_again) THEN
           e_recombined(i_el) = (random() <= recombine_prob)
         END IF
 
@@ -612,9 +612,9 @@ CONTAINS
 
   SUBROUTINE calculate_alpha_and_ne(ion_species, ix, iy, iz)
 
-    ! Calculate alpha for the current particle species. This describes the rate 
+    ! Calculate alpha for the current particle species. This describes the rate
     ! of collisional ionisation for bound electrons in the outermost shell of
-    ! the recombined ion. This implies the recombined electron would go to the 
+    ! the recombined ion. This implies the recombined electron would go to the
     ! shell which, under the ground-state transition approximation, would lose
     ! the electron upon ionisation. This is determined through comparison of the
     ! ground-state configurations of the initial and recombined ions.
@@ -676,7 +676,7 @@ CONTAINS
 
   FUNCTION rate_3br(ispecies, e_temp, num_dens_e)
 
-    ! Calculate the three-body recombination rate. From Kremp's "Quantum 
+    ! Calculate the three-body recombination rate. From Kremp's "Quantum
     ! statistics of non-ideal plasmas", we take:
     ! (eq 2.232): dne/dt = (ne*ni*alpha_CI - ne^2*ni*beta_3BR + radiative terms)
     ! (eq 8.47): beta_j = gj * lambda_e^3 * alpha_j * exp(Ieff / kT)
@@ -685,7 +685,7 @@ CONTAINS
     ! To find j, seek the shell which ionises from the recombined species
 
     REAL(num) :: rate_3br
-    REAL(num), INTENT(IN) :: e_temp, num_dens_e 
+    REAL(num), INTENT(IN) :: e_temp, num_dens_e
     INTEGER, INTENT(IN) :: ispecies
     REAL(num) :: lambda_e, gj, ionise_energy, beta_j
     INTEGER :: ion_l
@@ -807,4 +807,3 @@ CONTAINS
   END FUNCTION find_value_from_table_1d_recombine
 
 END MODULE recombination
-  
