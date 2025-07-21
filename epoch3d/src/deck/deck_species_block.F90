@@ -20,6 +20,7 @@ MODULE deck_species_block
   USE simple_io
   USE utilities
   USE partlist
+  USE shared_data
 
   IMPLICIT NONE
   SAVE
