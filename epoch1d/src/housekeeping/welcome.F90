@@ -213,6 +213,8 @@ CONTAINS
 #ifdef PER_PARTICLE_CHARGE_MASS
     defines = IOR(defines, c_def_per_particle_chargemass)
     WRITE(*,*) 'Per particle charge and mass -DPER_PARTICLE_CHARGE_MASS'
+    WRITE(*,*) 'WARNING: This feature has been deprecated and will ', &
+        'be removed in v4.21.0'
 #endif
 #ifdef HIGH_ORDER_SMOOTHING
     defines = IOR(defines, c_def_high_order_smoothing)
