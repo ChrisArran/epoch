@@ -238,8 +238,6 @@ CONTAINS
       END IF
 
       DO i = 1, n_species
-         ! Check for split particle species, which need secondary lists
-         IF (species_list(i)%split) species_list(i)%make_secondary_list = .TRUE.
          ! Check if recombination is being used
          use_recombination = use_recombination .OR. species_list(i)%recombine
       END DO
@@ -606,21 +604,6 @@ CONTAINS
           WRITE(io,*)
         END DO
       END IF
-      RETURN
-    END IF
-
-    ! *************************************************************
-    ! This section sets properties for particle splitting
-    ! *************************************************************
-    IF (str_cmp(element, 'split')) THEN
-      species_list(species_id)%split = as_logical_print(value, element, errcode)
-      RETURN
-    END IF
-
-    IF (str_cmp(element, 'npart_max') &
-        .OR. str_cmp(element, 'nparticles_max')) THEN
-      species_list(species_id)%npart_max = &
-          as_long_integer_print(value, element, errcode)
       RETURN
     END IF
 

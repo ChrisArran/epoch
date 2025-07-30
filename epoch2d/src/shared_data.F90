@@ -245,8 +245,6 @@ MODULE shared_data
 
     ! particle cell division
     INTEGER(i8) :: global_count
-    LOGICAL :: split
-    INTEGER(i8) :: npart_max
     ! Secondary list
     TYPE(particle_list), DIMENSION(:,:), POINTER :: secondary_list
 
