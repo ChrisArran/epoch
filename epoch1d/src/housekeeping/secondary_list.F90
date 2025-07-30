@@ -13,16 +13,11 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-MODULE split_particle
+MODULE secondary_list
 
   USE boundary
 
   IMPLICIT NONE
-
-  SAVE
-
-  INTEGER(i8) :: npart_per_cell_min = 5
-  LOGICAL :: use_split = .FALSE.
 
 CONTAINS
 
@@ -99,84 +94,4 @@ CONTAINS
 
   END SUBROUTINE reattach_particles_to_mainlist
 
-
-
-  SUBROUTINE setup_split_particles
-
-#ifndef PER_SPECIES_WEIGHT
-    INTEGER :: ispecies
-
-    use_split = .FALSE.
-    DO ispecies = 1, n_species
-      IF (species_list(ispecies)%split) THEN
-        use_split = .TRUE.
-        EXIT
-      END IF
-    END DO
-
-    use_particle_lists = use_particle_lists .OR. use_split
-    IF (use_split) need_random_state = .TRUE.
-#endif
-
-  END SUBROUTINE setup_split_particles
-
-
-
-  SUBROUTINE split_particles
-
-#ifndef PER_SPECIES_WEIGHT
-    INTEGER :: ispecies, ix
-    INTEGER(i8) :: count
-    TYPE(particle), POINTER :: current, new_particle
-    TYPE(particle_list) :: append_list
-    REAL(num) :: jitter_x
-    INTEGER :: i0, i1
-
-    i0 = 1 - ng
-    IF (use_field_ionisation) i0 = -ng
-    i1 = 1 - i0
-
-    DO ispecies = 1, n_species
-      IF (.NOT. species_list(ispecies)%split) CYCLE
-      IF (species_list(ispecies)%npart_max > 0 &
-          .AND. species_list(ispecies)%global_count &
-          >= species_list(ispecies)%npart_max) CYCLE
-
-      CALL create_empty_partlist(append_list)
-
-      DO ix = i0, nx + i1
-        count = species_list(ispecies)%secondary_list(ix)%count
-        IF (count > 0 .AND. count <= npart_per_cell_min) THEN
-          current => species_list(ispecies)%secondary_list(ix)%head
-          DO WHILE(ASSOCIATED(current) .AND. count <= npart_per_cell_min &
-              .AND. current%weight >= 1.0_num)
-            count = species_list(ispecies)%secondary_list(ix)%count
-            jitter_x = (2 * random() - 1) * 0.25_num * dx
-            current%weight = 0.5_num * current%weight
-            ALLOCATE(new_particle)
-            new_particle = current
-#if defined(PARTICLE_ID) || defined(PARTICLE_ID4)
-            new_particle%id = 0
-#endif
-            new_particle%part_pos = current%part_pos + jitter_x
-            CALL add_particle_to_partlist(append_list, new_particle)
-#ifdef PARTICLE_DEBUG
-            ! If running with particle debugging, specify that this
-            ! particle has been split
-            new_particle%processor_at_t0 = -1
-#endif
-            NULLIFY(new_particle)
-
-            current%part_pos = current%part_pos - jitter_x
-            current => current%next
-          END DO
-        END IF
-      END DO
-
-      CALL append_partlist(species_list(ispecies)%attached_list, append_list)
-    END DO
-#endif
-
-  END SUBROUTINE split_particles
-
-END MODULE split_particle
+END MODULE secondary_list

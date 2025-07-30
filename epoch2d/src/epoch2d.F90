@@ -42,12 +42,12 @@ PROGRAM pic
   USE finish
   USE welcome
   USE window
-  USE split_particle
   USE collisions
   USE collision_ionise
   USE background_collisions
   USE particle_migration
   USE recombination
+  USE secondary_list
   USE ionise
   USE calc_df
   USE injectors
@@ -227,8 +227,7 @@ PROGRAM pic
 
         ! After this line, the particles can be accessed on a cell by cell basis
         ! Using the particle_species%secondary_list property
-        IF (use_split .OR. collision_step .OR. coll_ion_step .OR. &
-            recombine_step) THEN
+        IF (collision_step .OR. coll_ion_step .OR. recombine_step) THEN
           CALL reorder_particles_to_grid
         END IF
 
@@ -243,11 +242,7 @@ PROGRAM pic
 
         IF (use_recombination) CALL run_recombination
 
-        ! Early beta version of particle splitting operator
-        IF (use_split) CALL split_particles
-
-        IF (use_split .OR. collision_step .OR. coll_ion_step .OR. &
-          recombine_step) THEN
+        IF (collision_step .OR. coll_ion_step .OR. recombine_step) THEN
           CALL reattach_particles_to_mainlist
         END IF
       END IF
