@@ -384,6 +384,7 @@ CONTAINS
       species_list(ispecies)%ic_df_type = c_ic_df_thermal
       species_list(ispecies)%electron = .FALSE.
       species_list(ispecies)%ionise = .FALSE.
+      species_list(ispecies)%recombine = .FALSE.
       species_list(ispecies)%ionise_to_species = -1
       species_list(ispecies)%release_species = -1
       species_list(ispecies)%n = 0
