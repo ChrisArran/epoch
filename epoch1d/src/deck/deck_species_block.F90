@@ -109,7 +109,8 @@ CONTAINS
       ALLOCATE(species_charge_set(n_species))
       species_charge_set = .FALSE.
 
-      DO i = 1, n_species
+      ! Set species properties read from deck
+      DO i = 1, n_species_blocks
         species_list(i)%name = species_names(i)
 
         ! This would usually be set after c_ds_first but all of this is required
@@ -124,6 +125,7 @@ CONTAINS
         species_list(i)%recombine = species_can_recombine(i)
       END DO
 
+      ! Set secondary species properties
       CALL set_ionisation_species_properties
 
       DO i = 1, n_species 
