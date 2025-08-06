@@ -660,7 +660,7 @@ CONTAINS
     END DO
 
     ! Calculate alpha = <sigma * v>
-    alpha_j = sigma_v_sum / e_weight_sum
+    alpha_j = sigma_v_sum / MAX(e_weight_sum, c_tiny)
 
     ! Save electron number density
     el_ne = e_weight_sum / (dx * dy)
