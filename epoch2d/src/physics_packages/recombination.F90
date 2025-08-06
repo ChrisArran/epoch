@@ -682,21 +682,25 @@ CONTAINS
     REAL(num) :: rate_3br
     REAL(num), INTENT(IN) :: e_temp, num_dens_e
     INTEGER, INTENT(IN) :: ispecies
-    REAL(num) :: lambda_e, gj, ionise_energy, beta_j
+    REAL(num) :: lambda_e, gj, ionise_energy, beta_j, kb_te
     INTEGER :: ion_l
 
+    ! Ionisation energy of state j
+    ionise_energy = species_list(species_list(ispecies)%recombine_to_species) &
+        %ionisation_energy
+
+    ! Lower limit on thermal energy to prevent overflow for low temperature
+    kb_te = MAX(0.01_num * ionise_energy, kb * e_temp)
+
     ! Thermal de Broglie wavelength - Kremp (2.18)
-    lambda_e = SQRT(2.0_num * pi * h_bar**2 / (m0 * kb * e_temp))
+    lambda_e = SQRT(2.0_num * pi * h_bar**2 / (m0 * kb_te))
 
     ! Degeneracy of state j
     ion_l = species_list(species_list(ispecies)%recombine_to_species)%l
     gj = 2.0_num * (2.0_num * REAL(ion_l, num) + 1.0_num)
 
-    ! Ionisation energy of state j
-    ionise_energy = species_list(species_list(ispecies)%recombine_to_species)&
-        %ionisation_energy
 
-    beta_j = gj * lambda_e**3 * alpha_j * exp(ionise_energy/(kb * e_temp))
+    beta_j = gj * lambda_e**3 * alpha_j * EXP(ionise_energy/kb_te)
     rate_3br = num_dens_e * beta_j
 
   END FUNCTION
