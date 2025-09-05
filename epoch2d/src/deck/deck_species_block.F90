@@ -1644,9 +1644,7 @@ CONTAINS
     ! These strings are too short to have a number appended to the end, so just 
     ! return the species block name
     name_size = LEN_TRIM(name)
-    IF ((state < 10 .AND. name_size < 2) .OR. &
-        (state < 100 .AND. name_size < 3) .OR. &
-        (state < 1000 .AND. name_size < 4)) THEN 
+    IF (name_size <= FLOOR(LOG10(REAL(state, num))) + 1) THEN
       get_base_name = name
       RETURN 
     END If
