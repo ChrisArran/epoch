@@ -1033,8 +1033,8 @@ CONTAINS
     new_positron%optical_depth_tri = reset_optical_depth()
 #endif
 
-    new_electron%weight = generating_photon%weight
-    new_positron%weight = generating_photon%weight
+    new_electron%weight = generating_photon%weight / pair_sample_fraction
+    new_positron%weight = generating_photon%weight / pair_sample_fraction
 
     CALL add_particle_to_partlist(species_list(ielectron)%attached_list, &
         new_electron)
@@ -1075,8 +1075,8 @@ CONTAINS
     new_positron%optical_depth_tri = reset_optical_depth()
 #endif
 
-    new_electron%weight = generating_electron%weight
-    new_positron%weight = generating_electron%weight
+    new_electron%weight = generating_electron%weight / pair_sample_fraction
+    new_positron%weight = generating_electron%weight / pair_sample_fraction
 
     CALL add_particle_to_partlist(species_list(ielectron)%attached_list, &
         new_electron)
