@@ -172,6 +172,13 @@ CONTAINS
       RETURN
     END IF
 
+    IF (str_cmp(element, 'pair_sample_fraction') &
+        .OR. str_cmp(element, 'pair_downsampling')) THEN
+      pair_sample_fraction = as_real_print(value, element, errcode)
+      IF (pair_sample_fraction > 1.0) pair_sample_fraction = 1.0
+      RETURN
+    END IF
+
     errcode = c_err_unknown_element
 #endif
 

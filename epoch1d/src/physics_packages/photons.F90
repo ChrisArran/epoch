@@ -571,12 +571,12 @@ CONTAINS
 
 #ifdef TRIDENT_PHOTONS
           IF (current%optical_depth_tri <= 0.0_num) THEN
-			IF (random() < pair_sample_fraction)
-	            CALL generate_pair_tri(current, trident_electron_species, &
-	                trident_positron_species)
-	            ! ... and reset optical depth
-	            current%optical_depth_tri = reset_optical_depth()
-			END IF
+            IF (random() < pair_sample_fraction)
+              CALL generate_pair_tri(current, trident_electron_species, &
+                  trident_positron_species)
+            END IF
+            ! ... and reset optical depth
+            current%optical_depth_tri = reset_optical_depth()
           END IF
 #endif
           current => current%next
@@ -602,10 +602,16 @@ CONTAINS
               - delta_optical_depth_photon(chi_val, part_e)
           ! If optical depth dropped below zero generate pair...
           IF (current%optical_depth <= 0.0_num) THEN
-			IF (random() < pair_sample_fraction)
-	            CALL generate_pair(current, chi_val, photon_species, &
-	                breit_wheeler_electron_species, breit_wheeler_positron_species)
-			END IF
+            IF (random() < pair_sample_fraction)
+              CALL generate_pair(current, chi_val, photon_species, &
+                  breit_wheeler_electron_species, breit_wheeler_positron_species)
+              ! This also deletes the generating photon when it's done
+            ELSE
+              CALL remove_particle_from_partlist(species_list(ispecies)%attached_list, &
+              ! This makes sure to delete the generating photon anyway
+        current)
+              DEALLOCATE(current)
+            END IF
           END IF
           current => next_pt
         END DO
