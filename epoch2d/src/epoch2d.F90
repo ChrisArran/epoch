@@ -240,7 +240,7 @@ PROGRAM pic
           CALL particle_collisions
         END IF
 
-        IF (use_recombination) CALL run_recombination
+        IF (recombine_step) CALL run_recombination
 
         IF (collision_step .OR. coll_ion_step .OR. recombine_step) THEN
           CALL reattach_particles_to_mainlist
