@@ -614,9 +614,17 @@ MODULE shared_data
   CHARACTER(LEN=string_length) :: qed_table_location
   LOGICAL :: use_continuous_emission = .FALSE., use_classical_emission=.FALSE.
   REAL(num) :: photon_sample_fraction = 1.0_num
+  LOGICAL :: use_LBW = .FALSE.
+  LOGICAL :: use_LBW_diff = .TRUE.
+  LOGICAL :: use_LBW_amp = .FALSE.
+  REAL(num) :: LBW_amp_factor
+  INTEGER :: lbw_electron_species = -1
+  INTEGER :: lbw_positron_species = -1
+  REAL(num), PARAMETER :: tolerance_cdf       = 1.0e-6_num
+  REAL(num), PARAMETER :: tolerance_cos_angle = 1.0e-6_num
 #endif
   LOGICAL :: use_qed = .FALSE.
-
+  LOGICAL :: use_binary_collisions = .FALSE.
 #ifdef BREMSSTRAHLUNG
   !----------------------------------------------------------------------------
   ! Bremsstrahlung
