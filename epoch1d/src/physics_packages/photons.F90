@@ -2043,8 +2043,8 @@ CONTAINS
   cdf_err_lb = lbw_polar_cdf_err(lb,        rnd_cdf, v, sigma)
   cdf_err_mp = lbw_polar_cdf_err(mid_point, rnd_cdf, v, sigma)
 
-  DO WHILE (ABS(cdf_err_mp) > tolerance_cdf .&
-        AND. (ABS(ub-lb)>tolerance_cos_angle))
+  DO WHILE (ABS(cdf_err_mp) > tolerance_cdf &
+        .AND. (ABS(ub-lb)>tolerance_cos_angle))
     IF (ABS(SIGN(1.0_num, cdf_err_lb) - SIGN(1.0_num, cdf_err_mp)) &
       < 0.5_num) THEN
       ! lb and mp have same sign
