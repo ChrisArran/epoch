@@ -1510,7 +1510,7 @@ CONTAINS
     TYPE(particle_list), INTENT(INOUT) :: lbw_elec_list, lbw_posi_list
     INTEGER(i8) :: icount
     REAL(num) :: P_max, N_max, cost, sint, rand_phi
-    INTEGER :: N_coll
+    INTEGER :: N_coll, iu, io
     TYPE(particle), POINTER :: current_i, current_j
     REAL(num) :: i_Pmax
     INTEGER :: N_scattered
@@ -1550,8 +1550,14 @@ CONTAINS
     IF (N_coll <= 0) RETURN
 
     IF (N_coll > (icount*0.5_num)) THEN
-      PRINT*, "Too many LBW collisions."
-      STOP
+      IF (rank == 0) THEN
+        DO iu = 1, nio_units ! Print to stdout and to file
+          io = io_units(iu)
+          WRITE(io,*) '*** ERROR ***'
+          WRITE(io,*) 'Too many linear Breit-Wheeler collisions'
+        END DO
+      END IF
+      CALL abort_code(c_err_qed)
     END IF
 
     ! Shuffle particle list only if there are pairs to check
@@ -1749,7 +1755,7 @@ CONTAINS
     TYPE(particle_list), INTENT(INOUT) :: lbw_elec_list, lbw_posi_list
     INTEGER(i8) :: icount, jcount
     REAL(num) :: q_i, q_j, P_max, N_max, cost, sint, rand_phi
-    INTEGER :: N_coll
+    INTEGER :: N_coll, iu, io
     TYPE(particle), POINTER :: current_i, current_j
     REAL(num) :: i_Pmax
     INTEGER :: N_scattered
@@ -1791,8 +1797,14 @@ CONTAINS
     IF (N_coll <= 0) RETURN
 
     IF (N_coll > MIN(icount, jcount)) THEN
-      PRINT*, "Too many LBW collisions."
-      STOP
+      IF (rank == 0) THEN
+        DO iu = 1, nio_units ! Print to stdout and to file
+          io = io_units(iu)
+          WRITE(io,*) '*** ERROR ***'
+          WRITE(io,*) 'Too many linear Breit-Wheeler collisions'
+        END DO
+      END IF
+      CALL abort_code(c_err_qed)
     END IF
 
     ! Shuffle particle list only if there are pairs to check
