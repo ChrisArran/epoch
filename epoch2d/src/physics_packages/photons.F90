@@ -1496,7 +1496,7 @@ CONTAINS
     INTEGER, INTENT(IN) :: ispe
     INTEGER(i8), INTENT(IN) :: ixx, iyy
     TYPE(particle_list), INTENT(INOUT) :: lbw_elec_list, lbw_posi_list
-    INTEGER :: icount
+    INTEGER(i8) :: icount
     REAL(num) :: P_max, N_max, cost, sint, rand_phi
     INTEGER :: N_coll
     TYPE(particle), POINTER :: current_i, current_j
@@ -1738,7 +1738,7 @@ CONTAINS
     INTEGER, INTENT(IN) :: ispe, jspe
     INTEGER(i8), INTENT(IN) :: ixx, iyy
     TYPE(particle_list), INTENT(INOUT) :: lbw_elec_list, lbw_posi_list
-    INTEGER :: icount, jcount
+    INTEGER(i8) :: icount, jcount
     REAL(num) :: q_i, q_j, P_max, N_max, cost, sint, rand_phi
     INTEGER :: N_coll
     TYPE(particle), POINTER :: current_i, current_j
@@ -2065,7 +2065,8 @@ CONTAINS
   cdf_err_lb = lbw_polar_cdf_err(lb,        rnd_cdf, v, sigma)
   cdf_err_mp = lbw_polar_cdf_err(mid_point, rnd_cdf, v, sigma)
 
-  DO WHILE (ABS(cdf_err_mp) > tolerance_cdf .AND. (ABS(ub-lb)>tolerance_cos_angle))
+  DO WHILE (ABS(cdf_err_mp) > tolerance_cdf .AND. &
+      (ABS(ub-lb)>tolerance_cos_angle))
     IF (ABS(SIGN(1.0_num, cdf_err_lb) - SIGN(1.0_num, cdf_err_mp)) &
         < 0.5_num) THEN
       ! lb and mp have same sign
