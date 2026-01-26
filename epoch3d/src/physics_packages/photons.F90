@@ -1458,44 +1458,41 @@ CONTAINS
     !!! Linear Breit-Wheeler
     IF (use_LBW) THEN
       DO ispecies = 1, n_species
-        IF (species_list(ispecies)%species_type == c_species_id_photon) THEN
-          DO jspecies = ispecies, n_species
-            IF (species_list(jspecies)%species_type == c_species_id_photon) THEN
-              DO ix = 1, nx
-                DO iy = 1, ny
-                  DO iz = 1, nz
-                    CALL create_empty_partlist(new_lbw_electrons)
-                    CALL create_empty_partlist(new_lbw_positrons)
+        IF (species_list(ispecies)%species_type /= c_species_id_photon) CYCLE
+        DO jspecies = ispecies, n_species
+          IF (species_list(jspecies)%species_type /= c_species_id_photon) CYCLE
+          DO ix = 1, nx
+            DO iy = 1, ny
+              DO iz = 1, nz
+                CALL create_empty_partlist(new_lbw_electrons)
+                CALL create_empty_partlist(new_lbw_positrons)
+                IF (ispecies == jspecies) THEN
+                  p_list1 => species_list(ispecies)%secondary_list(ix,iy,iz)
 
-                    IF (ispecies == jspecies) THEN
-                      p_list1 => species_list(ispecies)%secondary_list(ix,iy,iz)
+                  CALL linear_Breit_Wheeler_intra( &
+                      p_list1, ispecies, ix, iy, iz, &
+                      new_lbw_electrons, new_lbw_positrons)
+                ELSE
+                  p_list1 => species_list(ispecies)%secondary_list(ix,iy,iz)
+                  p_list2 => species_list(jspecies)%secondary_list(ix,iy,iz)
 
-                      CALL linear_Breit_Wheeler_intra( &
-                          p_list1, ispecies, ix, iy, iz, &
-                          new_lbw_electrons, new_lbw_positrons)
-                    ELSE
-                      p_list1 => species_list(ispecies)%secondary_list(ix,iy,iz)
-                      p_list2 => species_list(jspecies)%secondary_list(ix,iy,iz)
+                  CALL linear_Breit_Wheeler_inter( &
+                      p_list1, p_list2, ispecies, jspecies, ix, iy, iz, &
+                      new_lbw_electrons, new_lbw_positrons)
+                END IF
 
-                      CALL linear_Breit_Wheeler_inter( &
-                          p_list1, p_list2, ispecies, jspecies, ix, iy, iz, &
-                          new_lbw_electrons, new_lbw_positrons)
-                    END IF
-
-                    IF (new_lbw_electrons%count > 0) THEN
-                      CALL append_partlist(species_list(lbw_electron_species &
-                          )%secondary_list(ix,iy,iz), new_lbw_electrons)
-                    END IF
-                    IF (new_lbw_positrons%count > 0) THEN
-                      CALL append_partlist(species_list(lbw_positron_species &
-                          )%secondary_list(ix,iy,iz), new_lbw_positrons)
-                    END IF
-                  END DO ! do ix = 1, nz
-                END DO ! do iy = 1, ny
-              END DO ! do iz = 1, nx
-            END IF ! jspecies being photon
-          END DO ! jspecies
-        END IF ! ispecies being photon
+                IF (new_lbw_electrons%count > 0) THEN
+                  CALL append_partlist(species_list(lbw_electron_species &
+                      )%secondary_list(ix,iy,iz), new_lbw_electrons)
+                END IF
+                IF (new_lbw_positrons%count > 0) THEN
+                  CALL append_partlist(species_list(lbw_positron_species &
+                      )%secondary_list(ix,iy,iz), new_lbw_positrons)
+                END IF
+              END DO ! do ix = 1, nz
+            END DO ! do iy = 1, ny
+          END DO ! do iz = 1, nx
+        END DO ! jspecies
       END DO ! ispecies
     END IF ! if use_LBW
 
