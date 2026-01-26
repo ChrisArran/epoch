@@ -1428,8 +1428,6 @@ CONTAINS
     INTEGER(i8) :: ix
     TYPE(particle_list), POINTER :: p_list1, p_list2
     TYPE(particle_list) :: new_lbw_electrons, new_lbw_positrons
-    TYPE(particle_list) :: splitted_lcs_photons, splitted_lcs_leptons
-    TYPE(particle_list) :: new_epa_photons
 
     IF (use_LBW) THEN
       DO ispecies = 1, n_species

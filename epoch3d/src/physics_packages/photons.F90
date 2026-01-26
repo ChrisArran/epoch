@@ -21,7 +21,7 @@ MODULE photons
 
   IMPLICIT NONE
 
-  REAL(num), PRIVATE :: sig2cdt_dV_lbw, sig2cdt_dV_lcs, sig2cdt_dV_epa
+  REAL(num), PRIVATE :: sig2cdt_dV_lbw
   REAL(num), PRIVATE :: cdt_dV
   REAL(num), PRIVATE :: i_LBW_amp_factor
   SAVE
