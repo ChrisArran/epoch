@@ -1511,7 +1511,7 @@ CONTAINS
     INTEGER(i8), INTENT(IN) :: ixx, iyy, izz
     TYPE(particle_list), INTENT(INOUT) :: lbw_elec_list, lbw_posi_list
     INTEGER :: icount
-    REAL(num) :: P_max, N_max
+    REAL(num) :: P_max, N_max, cost, sint, rand_phi
     INTEGER :: N_coll
     TYPE(particle), POINTER :: current_i, current_j
     REAL(num) :: i_Pmax
@@ -1522,7 +1522,6 @@ CONTAINS
     REAL(num) :: com_beta, sigma_lbw, P_coll
     REAL(num) :: Y_ij
     REAL(num), DIMENSION(3) :: lepton_pos
-    REAL(num) :: rand_phi, rand_mu, rand_psi
     REAL(num), DIMENSION(3) :: beta_v, n_v, p_phot_com
     REAL(num) :: gamma_v
     REAL(num), DIMENSION(3) :: e1, e2, e3
@@ -1638,7 +1637,8 @@ CONTAINS
           rand_phi = 2.0_num * pi * random()
 
           ! random polar angle in c.o.m. (cosine of this random angle)
-          rand_mu = random_polar_lbw(com_beta, sigma_lbw)
+          cost = random_polar_lbw(com_beta, sigma_lbw)
+          sint = SQRT(1.0_num - cost**2)
 
           ! photon momentum in c.o.m. (in SI)
           p_phot_com = moment_i + (gamma_v-1.0_num) &
@@ -1649,22 +1649,21 @@ CONTAINS
 
           ! lepton momentum in c.o.m. (in SI)
           p_lep_com = p_lep_com_mag &
-            * ( e1*rand_mu &
-            + e2*SQRT(1.0_num-rand_mu**2)*COS(rand_phi) &
-            + e3*SQRT(1.0_num-rand_mu**2)*SIN(rand_phi))
+            * (e1*cost + e2*sint*COS(rand_phi) + e3*sint*SIN(rand_phi))
         ELSE
-          ! uniform distribution on sphere surface
+          ! Uniform distribution on sphere surface
 
           ! random azimuthal angle in c.o.m.
           rand_phi = 2.0_num * pi * random()
 
-          ! random polar angleSUBROUTINE linear_Compton_Scattering
-          rand_psi = ACOS(2.0_num * random() - 1.0_num)
+          ! random polar angle
+          cost = 2.0_num * random() - 1.0_num
+          sint = SQRT(1.0_num - cost**2)
 
           ! lepton momentum in c.o.m. (in SI)
-          p_lep_com(1) = p_lep_com_mag * SIN(rand_psi) * COS(rand_phi)
-          p_lep_com(2) = p_lep_com_mag * SIN(rand_psi) * SIN(rand_phi)
-          p_lep_com(3) = p_lep_com_mag * COS(rand_psi)
+          p_lep_com(1) = p_lep_com_mag * sint * COS(rand_phi)
+          p_lep_com(2) = p_lep_com_mag * sint * SIN(rand_phi)
+          p_lep_com(3) = p_lep_com_mag * cost
         END IF
 
         ! electron momentum in lab
@@ -1753,7 +1752,7 @@ CONTAINS
     INTEGER(i8), INTENT(IN) :: ixx, iyy, izz
     TYPE(particle_list), INTENT(INOUT) :: lbw_elec_list, lbw_posi_list
     INTEGER :: icount, jcount
-    REAL(num) :: q_i, q_j, P_max, N_max
+    REAL(num) :: q_i, q_j, P_max, N_max, cost, sint, rand_phi
     INTEGER :: N_coll
     TYPE(particle), POINTER :: current_i, current_j
     REAL(num) :: i_Pmax
@@ -1764,7 +1763,6 @@ CONTAINS
     REAL(num) :: com_beta, sigma_lbw, P_coll
     REAL(num) :: Y_ij
     REAL(num), DIMENSION(3) :: lepton_pos
-    REAL(num) :: rand_phi, rand_mu, rand_psi
     REAL(num), DIMENSION(3) :: beta_v, n_v, p_phot_com
     REAL(num) :: gamma_v
     REAL(num), DIMENSION(3) :: e1, e2, e3
@@ -1887,7 +1885,8 @@ CONTAINS
           rand_phi = 2.0_num * pi * random()
 
           ! random polar angle in c.o.m. (cosine of this random angle)
-          rand_mu = random_polar_lbw(com_beta, sigma_lbw)
+          cost = random_polar_lbw(com_beta, sigma_lbw)
+          sint = SQRT(1.0_num - cost**2)
 
           ! photon momentum in c.o.m. (in SI)
           p_phot_com = moment_i + (gamma_v-1.0_num) &
@@ -1898,22 +1897,21 @@ CONTAINS
 
           ! lepton momentum in c.o.m. (in SI)
           p_lep_com = p_lep_com_mag &
-            * ( e1*rand_mu &
-            + e2*SQRT(1.0_num-rand_mu**2)*COS(rand_phi) &
-            + e3*SQRT(1.0_num-rand_mu**2)*SIN(rand_phi))
+            * (e1*cost + e2*sint*COS(rand_phi) + e3*sint*SIN(rand_phi))
         ELSE
-          ! uniform distribution on sphere surface
+          ! Uniform distribution on sphere surface
 
           ! random azimuthal angle in c.o.m.
           rand_phi = 2.0_num * pi * random()
 
           ! random polar angle
-          rand_psi = ACOS(2.0_num * random() - 1.0_num)
+          cost = 2.0_num * random() - 1.0_num
+          sint = SQRT(1.0_num - cost**2)
 
           ! lepton momentum in c.o.m. (in SI)
-          p_lep_com(1) = p_lep_com_mag * SIN(rand_psi) * COS(rand_phi)
-          p_lep_com(2) = p_lep_com_mag * SIN(rand_psi) * SIN(rand_phi)
-          p_lep_com(3) = p_lep_com_mag * COS(rand_psi)
+          p_lep_com(1) = p_lep_com_mag * sint * COS(rand_phi)
+          p_lep_com(2) = p_lep_com_mag * sint * SIN(rand_phi)
+          p_lep_com(3) = p_lep_com_mag * cost
         END IF
 
         ! electron momentum in lab
