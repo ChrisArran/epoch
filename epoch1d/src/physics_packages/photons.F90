@@ -1760,26 +1760,21 @@ CONTAINS
       N_coll = FLOOR(N_max)
     END IF
 
+    !!! Check the collision of these N_coll pairings of macro-photon
+    IF (N_coll <= 0) RETURN
+
     IF (N_coll > MIN(icount, jcount)) THEN
       PRINT*, "Too many LBW collisions."
       STOP
     END IF
 
-    !!! Check the collision of these N_coll pairings of macro-photon
-
-    IF (N_coll > 0) THEN
-      ! shuffle particle list only if there are pairs to check
-      CALL shuffle_particle_list_random(p_list_i)
-      CALL shuffle_particle_list_random(p_list_j)
-
-      current_i => p_list_i%head
-      current_j => p_list_j%head
-
-      i_Pmax = 1.0_num/P_max
-      N_scattered = 0
-    ELSE
-      RETURN ! N_coll = 0, no pair to check
-    END IF
+    ! Shuffle particle list only if there are pairs to check
+    CALL shuffle_particle_list_random(p_list_i)
+    CALL shuffle_particle_list_random(p_list_j)
+    current_i => p_list_i%head
+    current_j => p_list_j%head
+    i_Pmax = 1.0_num/P_max
+    N_scattered = 0
 
     DO WHILE (N_scattered < N_coll)
       !!! check if four-momentum conservation
