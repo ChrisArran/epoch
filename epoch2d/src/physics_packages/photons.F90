@@ -72,7 +72,8 @@ CONTAINS
     END IF
 
     IF (use_LBW_amp) THEN
-      sig2cdt_dV_lbw = 2.0_num * sigma_lBW_max * c * dt / dx / dy * LBW_amp_factor
+      sig2cdt_dV_lbw = 2.0_num * sigma_lBW_max * c * dt / dx / dy &
+          * LBW_amp_factor
       cdt_dV = c * dt / dx / dy * LBW_amp_factor
       i_LBW_amp_factor = 1.0_num / LBW_amp_factor
     ELSE
@@ -1456,7 +1457,8 @@ CONTAINS
               IF (ispecies == jspecies) THEN
                 p_list1 => species_list(ispecies)%secondary_list(ix,iy)
                 CALL linear_Breit_Wheeler_intra( &
-                    p_list1, ispecies, ix, iy, new_lbw_electrons, new_lbw_positrons)
+                    p_list1, ispecies, ix, iy, &
+                    new_lbw_electrons, new_lbw_positrons)
               ELSE
                 p_list1 => species_list(ispecies)%secondary_list(ix,iy)
                 p_list2 => species_list(jspecies)%secondary_list(ix,iy)

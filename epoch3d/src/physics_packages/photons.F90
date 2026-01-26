@@ -72,7 +72,8 @@ CONTAINS
     END IF
 
     IF (use_LBW_amp) THEN
-      sig2cdt_dV_lbw = 2.0_num * sigma_lBW_max * c * dt / dx/dy/dz * LBW_amp_factor
+      sig2cdt_dV_lbw = 2.0_num * sigma_lBW_max * c * dt / dx/dy/dz &
+          * LBW_amp_factor
       cdt_dV = c * dt / dx/dy/dz *  LBW_amp_factor
       i_LBW_amp_factor = 1.0_num / LBW_amp_factor
     ELSE
