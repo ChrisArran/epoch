@@ -48,7 +48,6 @@ CONTAINS
       use_binary_collisions = .FALSE.
       use_LBW = .FALSE.
       use_LBW_diff = .TRUE.
-      use_LBW_amp = .FALSE.
       LBW_amp_factor = 1.0_num
     END IF
 #endif
@@ -96,6 +95,7 @@ CONTAINS
     END DO
   END IF
 
+  lbw_amp_factor = MAX(lbw_amp_factor, 1.0_num)
 #else
     IF (use_qed) THEN
       IF (rank == 0) THEN
@@ -200,11 +200,6 @@ CONTAINS
 
     IF(str_cmp(element, 'LBW_differential_cross')) THEN
       use_LBW_diff = as_logical_print(value, element, errcode)
-      RETURN
-    END IF
-
-    IF(str_cmp(element, 'amplify_LBW')) THEN
-      use_LBW_amp = as_logical_print(value, element, errcode)
       RETURN
     END IF
 

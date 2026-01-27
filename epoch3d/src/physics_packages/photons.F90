@@ -72,15 +72,10 @@ CONTAINS
       END DO
     END IF
 
-    IF (use_LBW_amp) THEN
-      sig2cdt_dV_lbw = 2.0_num * sigma_lBW_max * c * dt / dx/dy/dz &
-          * LBW_amp_factor
-      cdt_dV = c * dt / dx/dy/dz *  LBW_amp_factor
-      i_LBW_amp_factor = 1.0_num / LBW_amp_factor
-    ELSE
-      sig2cdt_dV_lbw = 2.0_num * sigma_lBW_max * c * dt / dx/dy/dz
-      cdt_dV = c * dt / dx/dy/dz
-    END IF
+    sig2cdt_dV_lbw = 2.0_num * sigma_lBW_max * c * dt / dx/dy/dz &
+        * LBW_amp_factor
+    cdt_dV = c * dt / dx/dy/dz *  LBW_amp_factor
+    i_LBW_amp_factor = 1.0_num / LBW_amp_factor
 
   END SUBROUTINE setup_qed_module
 
@@ -1623,11 +1618,7 @@ CONTAINS
 
       ! Now, collide these two macro-photons.
       ! Pair yield
-      IF (use_LBW_amp) THEN
-        Y_ij = MIN(weight_i, weight_j) * i_LBW_amp_factor
-      ELSE
-        Y_ij = MIN(weight_i, weight_j)
-      END IF
+      Y_ij = MIN(weight_i, weight_j) * i_LBW_amp_factor
 
       ! Pair position
       lepton_pos = (current_i%part_pos + current_j%part_pos)*0.5_num
@@ -1705,7 +1696,7 @@ CONTAINS
       next_i => current_j%next
       IF (ASSOCIATED(next_i)) next_j => next_i%next
       ! Now, annihilate photons by decreasing weight, or delete macro-photon
-      IF (use_LBW_amp) THEN
+      IF (lbw_amp_factor > 1.0_num) THEN
         ! In this case, no macro-photons are deleted
         current_i%weight = weight_i - Y_ij
         current_j%weight = weight_j - Y_ij
@@ -1731,7 +1722,7 @@ CONTAINS
               )%secondary_list(ixx,iyy,izz), current_j)
           DEALLOCATE(current_j)
         END IF ! comparing weights
-      END IF ! if use_LBW_amp
+      END IF ! if amplification_factor > 1.0_num
 
       ! Now, collision of these two macro photons is done,
       ! Move pointer to next particle
@@ -1873,11 +1864,7 @@ CONTAINS
 
       ! Now, collide these two macro-photons.
       ! Pair yield
-      IF (use_LBW_amp) THEN
-        Y_ij = MIN(weight_i, weight_j) * i_LBW_amp_factor
-      ELSE
-        Y_ij = MIN(weight_i, weight_j)
-      END IF
+      Y_ij = MIN(weight_i, weight_j) * i_LBW_amp_factor
 
       ! Pair position
       lepton_pos = (current_i%part_pos + current_j%part_pos)*0.5_num
@@ -1956,7 +1943,7 @@ CONTAINS
       next_j => current_j%next
 
       ! Now, annihilate photons by decreasing weight, or delete macro-photon
-      IF (use_LBW_amp) THEN
+      IF (lbw_amp_factor > 1.0_num) THEN
         ! In this case, no macro-photons are deleted
         current_i%weight = weight_i - Y_ij
         current_j%weight = weight_j - Y_ij
@@ -1982,7 +1969,7 @@ CONTAINS
               )%secondary_list(ixx,iyy,izz), current_j)
           DEALLOCATE(current_j)
         END IF ! comparing weights
-      END IF ! if use_LBW_amp
+      END IF ! if lbw_amp_factor > 1.0
 
       ! Now, collision of these two macro photons is done,
       ! Move pointer to next particle
