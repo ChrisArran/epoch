@@ -16,8 +16,9 @@
 MODULE photons
 #ifdef PHOTONS
 
-  USE partlist
   USE collisions
+  USE partlist
+  USE utilities
 
   IMPLICIT NONE
 
