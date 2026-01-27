@@ -24,6 +24,7 @@ end:control
 #
 #   use_collisions = T       # Collisions must be on for collisional ionisation
 #   collisional_ionisation = T             # Switches on collisional ionisation
+#   use_nanbu = T
 #
 # end:collisions
 
@@ -34,6 +35,7 @@ begin:constant
   den_max = 10.0 * critical(omega)
   den_preplasma = 1.0e18
   len_scale = 5.0 * micron
+  ion_charge_state = 22 # Initial ionisation level of ions
 end:constant
 
 
@@ -47,13 +49,15 @@ begin:species
   name = Electron
   charge = -1.0
   mass = 1.0
+  number_density = den_max * ion_charge_state
   nparticles = nx * 5
+  identify:electron
 end:species
 
 
 begin:species
   name = Palladium
-  charge = 22.0
+  charge = ion_charge_state
   atomic_no = 46
   mass = 1836.2 * 105.0
 
@@ -64,13 +68,6 @@ begin:species
   ionisation_electron_species = Electron        # Species for ejected electrons
 
   nparticles = nx * 5
-end:species
-
-
-begin:species
-  name = Electron
-  number_density = number_density(Palladium) * 22.0
-  temperature = 1e6
 end:species
 
 
