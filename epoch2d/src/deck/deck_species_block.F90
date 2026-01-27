@@ -1255,7 +1255,8 @@ CONTAINS
           WRITE(io,*) ''
           WRITE(io,*) '*** ERROR ***'
           WRITE(io,*) 'Unable to find the file:'
-          WRITE(io,*) TRIM(physics_table_location) // '/ionisation_energies.table'
+          WRITE(io,*) TRIM(physics_table_location) &
+              // '/ionisation_energies.table'
           WRITE(io,*) ''
         END DO
       END IF
