@@ -1226,14 +1226,16 @@ CONTAINS
     LOGICAL :: exists
 
     IF (atomic_no < 1 .OR. atomic_no > 100) THEN
-      DO iu = 1, nio_units ! Print to stdout and to file
-        io = io_units(iu)
-        WRITE(io,*) ''
-        WRITE(io,*) '*** ERROR ***'
-        WRITE(io,*) 'Ionising species must have an atomic number between'
-        WRITE(io,*) '1 and 100'
-        WRITE(io,*) ''
-      END DO
+      IF (rank == 0) THEN
+        DO iu = 1, nio_units ! Print to stdout and to file
+          io = io_units(iu)
+          WRITE(io,*) ''
+          WRITE(io,*) '*** ERROR ***'
+          WRITE(io,*) 'Ionising species must have an atomic number between'
+          WRITE(io,*) '1 and 100'
+          WRITE(io,*) ''
+        END DO
+      END IF
       CALL abort_code(c_err_bad_value)
     END IF
 
@@ -1241,42 +1243,49 @@ CONTAINS
     INQUIRE(FILE=TRIM(physics_table_location) // '/ionisation_energies.table', &
         EXIST=exists)
     IF (.NOT.exists) THEN
-      DO iu = 1, nio_units ! Print to stdout and to file
-        io = io_units(iu)
-        WRITE(io,*) ''
-        WRITE(io,*) '*** ERROR ***'
-        WRITE(io,*) 'Unable to find the file:'
-        WRITE(io,*) TRIM(physics_table_location) // '/ionisation_energies.table'
-        WRITE(io,*) ''
-      END DO
+      IF (rank == 0) THEN
+        DO iu = 1, nio_units ! Print to stdout and to file
+          io = io_units(iu)
+          WRITE(io,*) ''
+          WRITE(io,*) '*** ERROR ***'
+          WRITE(io,*) 'Unable to find the file:'
+          WRITE(io,*) TRIM(physics_table_location) &
+              // '/ionisation_energies.table'
+          WRITE(io,*) ''
+        END DO
+      END IF
       CALL abort_code(c_err_io_error)
     END IF
 
     INQUIRE(FILE=TRIM(physics_table_location) // '/ion_l.table', &
         EXIST=exists)
     IF (.NOT.exists) THEN
-      DO iu = 1, nio_units ! Print to stdout and to file
-        io = io_units(iu)
-        WRITE(io,*) ''
-        WRITE(io,*) '*** ERROR ***'
-        WRITE(io,*) 'Unable to find the file:'
-        WRITE(io,*) TRIM(physics_table_location) // '/ion_l.table'
-        WRITE(io,*) ''
-      END DO
+      IF (rank == 0) THEN
+        DO iu = 1, nio_units ! Print to stdout and to file
+          io = io_units(iu)
+          WRITE(io,*) ''
+          WRITE(io,*) '*** ERROR ***'
+          WRITE(io,*) 'Unable to find the file:'
+          WRITE(io,*) TRIM(physics_table_location) // '/ion_l.table'
+          WRITE(io,*) ''
+        END DO
+      END IF
       CALL abort_code(c_err_io_error)
     END IF
 
     INQUIRE(FILE=TRIM(physics_table_location) // '/ion_n.table', &
         EXIST=exists)
     IF (.NOT.exists) THEN
-      DO iu = 1, nio_units ! Print to stdout and to file
-        io = io_units(iu)
-        WRITE(io,*) ''
-        WRITE(io,*) '*** ERROR ***'
-        WRITE(io,*) 'Unable to find the file:'
-        WRITE(io,*) TRIM(physics_table_location) // '/ion_n.table'
-        WRITE(io,*) ''
-      END DO
+      IF (rank == 0) THEN
+        DO iu = 1, nio_units ! Print to stdout and to file
+          io = io_units(iu)
+          WRITE(io,*) ''
+          WRITE(io,*) '*** ERROR ***'
+          WRITE(io,*) 'Unable to find the file:'
+          WRITE(io,*) TRIM(physics_table_location) // '/ion_n.table'
+          WRITE(io,*) ''
+        END DO
+      END IF
       CALL abort_code(c_err_io_error)
     END IF
 

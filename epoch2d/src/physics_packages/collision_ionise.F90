@@ -636,15 +636,17 @@ CONTAINS
     INQUIRE(FILE=TRIM(physics_table_location) &
         //'/binding_energy/be_'//z_string, EXIST=exists)
     IF (.NOT.exists) THEN
-      DO iu = 1, nio_units ! Print to stdout and to file
-        io = io_units(iu)
-        WRITE(io,*) ''
-        WRITE(io,*) '*** ERROR ***'
-        WRITE(io,*) 'Unable to find the file:'
-        WRITE(io,*) TRIM(physics_table_location) &
-            //'/binding_energy/be_'//z_string
-        WRITE(io,*) ''
-      END DO
+      IF (rank == 0) THEN
+        DO iu = 1, nio_units ! Print to stdout and to file
+          io = io_units(iu)
+          WRITE(io,*) ''
+          WRITE(io,*) '*** ERROR ***'
+          WRITE(io,*) 'Unable to find the file:'
+          WRITE(io,*) TRIM(physics_table_location) &
+              //'/binding_energy/be_'//z_string
+          WRITE(io,*) ''
+        END DO
+      END IF
       CALL abort_code(c_err_io_error)
     END IF
 
