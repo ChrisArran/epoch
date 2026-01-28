@@ -136,6 +136,13 @@ MODULE shared_data
 #if defined(PROBE_TIME)
     REAL(num) :: probe_time
 #endif
+#ifdef TRANSITION_RATES
+    REAL(num) :: rate_fi
+    REAL(num) :: rate_ci
+    REAL(num) :: rate_dr
+    REAL(num) :: rate_rr
+    REAL(num) :: rate_3br
+#endif
   END TYPE particle
 
   ! Data for migration between species
@@ -238,8 +245,6 @@ MODULE shared_data
 
     ! particle cell division
     INTEGER(i8) :: global_count
-    LOGICAL :: split
-    INTEGER(i8) :: npart_max
     ! Secondary list
     TYPE(particle_list), DIMENSION(:), POINTER :: secondary_list
 
@@ -264,6 +269,14 @@ MODULE shared_data
     REAL(num), ALLOCATABLE :: coll_ion_mean_bind(:,:)
     REAL(num), ALLOCATABLE :: coll_ion_secondary_ke(:,:)
     REAL(num), ALLOCATABLE :: coll_ion_secondary_cdf(:,:)
+    
+    ! Species recombination
+    LOGICAL :: recombine
+    INTEGER :: recombine_to_species
+    INTEGER :: recombine_array_size_dr, recombine_array_size_rr
+    REAL(num), ALLOCATABLE :: recombine_temp_dr(:), recombine_rate_dr(:)
+    REAL(num), ALLOCATABLE :: recombine_temp_rr(:), recombine_rate_rr(:)
+    REAL(num), ALLOCATABLE :: ci_outer_cross_sec(:)
 
     ! Attached probes for this species
 #ifndef NO_PARTICLE_PROBES
@@ -545,6 +558,7 @@ MODULE shared_data
   INTEGER :: coll_n_step = 1
   INTEGER :: back_n_step = 1
   INTEGER :: ci_n_step = 1
+  INTEGER :: recombine_n_step = 1
   REAL(num) :: coulomb_log, rel_cutoff, back_update_dt
   LOGICAL :: coulomb_log_auto, use_collisions
   LOGICAL :: use_background_collisions
@@ -554,7 +568,10 @@ MODULE shared_data
   LOGICAL :: coll_subcycle_back = .FALSE.
   LOGICAL :: coll_back_recalc
 
-  LOGICAL :: use_field_ionisation, use_collisional_ionisation
+  LOGICAL :: use_field_ionisation, use_collisional_ionisation, use_recombination
+  LOGICAL :: use_dielectronic_recombination = .TRUE.
+  LOGICAL :: use_radiative_recombination = .TRUE.
+  LOGICAL :: use_three_body_recombination = .TRUE.
   LOGICAL :: use_multiphoton, use_bsi
   CHARACTER(LEN=string_length) :: physics_table_location
 
@@ -597,9 +614,16 @@ MODULE shared_data
   CHARACTER(LEN=string_length) :: qed_table_location
   LOGICAL :: use_continuous_emission = .FALSE., use_classical_emission=.FALSE.
   REAL(num) :: photon_sample_fraction = 1.0_num
+  LOGICAL :: use_LBW = .FALSE.
+  LOGICAL :: use_LBW_diff = .TRUE.
+  REAL(num) :: LBW_amp_factor = 1.0_num
+  INTEGER :: lbw_electron_species = -1
+  INTEGER :: lbw_positron_species = -1
+  REAL(num), PARAMETER :: tolerance_cdf       = 1.0e-6_num
+  REAL(num), PARAMETER :: tolerance_cos_angle = 1.0e-6_num
 #endif
   LOGICAL :: use_qed = .FALSE.
-
+  LOGICAL :: use_binary_collisions = .FALSE.
 #ifdef BREMSSTRAHLUNG
   !----------------------------------------------------------------------------
   ! Bremsstrahlung

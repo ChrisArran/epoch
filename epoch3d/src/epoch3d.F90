@@ -42,11 +42,12 @@ PROGRAM pic
   USE finish
   USE welcome
   USE window
-  USE split_particle
   USE collisions
   USE collision_ionise
   USE background_collisions
   USE particle_migration
+  USE recombination
+  USE secondary_list
   USE ionise
   USE calc_df
   USE injectors
@@ -63,7 +64,7 @@ PROGRAM pic
   INTEGER :: ispecies, ierr
   LOGICAL :: halt = .FALSE., push = .TRUE.
   LOGICAL :: force_dump = .FALSE.
-  LOGICAL :: collision_step, coll_ion_step
+  LOGICAL :: collision_step, coll_ion_step, recombine_step
   CHARACTER(LEN=64) :: deck_file = 'input.deck'
   CHARACTER(LEN=*), PARAMETER :: data_dir_file = 'USE_DATA_DIRECTORY'
   CHARACTER(LEN=64) :: timestring
@@ -184,6 +185,7 @@ PROGRAM pic
   IF (.NOT.ic_from_restart) CALL output_routines(step) ! diagnostics.f90
   IF (use_field_ionisation) CALL initialise_ionisation
   IF (use_collisional_ionisation) CALL setup_coll_ionise_tables
+  IF (use_recombination) CALL setup_recombination_tables
 
   IF (timer_collect) CALL timer_start(c_timer_step)
 
@@ -214,16 +216,20 @@ PROGRAM pic
       ! .FALSE. this time to use load balancing threshold
       IF (use_balance) CALL balance_workload(.FALSE.)
       CALL push_particles
-      IF (use_particle_lists) THEN
+
+      IF (use_particle_lists .OR. use_binary_collisions) THEN
         ! Check whether this is a step with collisions or collisional ionisation
         collision_step = (MODULO(step, coll_n_step) == coll_n_step - 1) &
           .AND. use_collisions
         coll_ion_step = MODULO(step, ci_n_step) == ci_n_step - 1 &
           .AND. use_collisional_ionisation
+        recombine_step = MODULO(step, recombine_n_step) == recombine_n_step - 1&
+          .AND. use_recombination
 
         ! After this line, the particles can be accessed on a cell by cell basis
         ! Using the particle_species%secondary_list property
-        IF (use_split .OR. collision_step .OR. coll_ion_step) THEN
+        IF (collision_step .OR. coll_ion_step .OR. recombine_step &
+            .OR. use_binary_collisions) THEN
           CALL reorder_particles_to_grid
         END IF
 
@@ -236,10 +242,15 @@ PROGRAM pic
           CALL particle_collisions
         END IF
 
-        ! Early beta version of particle splitting operator
-        IF (use_split) CALL split_particles
+        IF (recombine_step) CALL run_recombination
 
-        IF (use_split .OR. collision_step .OR. coll_ion_step) THEN
+#ifdef PHOTONS
+        IF (use_binary_collisions) THEN
+          CALL do_binary_collisions
+        END IF
+#endif
+        IF (collision_step .OR. coll_ion_step .OR. recombine_step &
+            .OR. use_binary_collisions) THEN
           CALL reattach_particles_to_mainlist
         END IF
       END IF

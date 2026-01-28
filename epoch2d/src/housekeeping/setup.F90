@@ -19,7 +19,6 @@ MODULE setup
   USE mpi_subtype_control
   USE version_data
   USE welcome
-  USE split_particle
   USE shunt
   USE laser
   USE injectors
@@ -210,7 +209,6 @@ CONTAINS
     INTEGER :: i
 
     CALL setup_data_averaging
-    CALL setup_split_particles
     CALL setup_field_boundaries
 
     cpml_x_min = .FALSE.
@@ -326,8 +324,6 @@ CONTAINS
       species_list(ispecies)%count = -1
       species_list(ispecies)%id = 0
       species_list(ispecies)%npart_per_cell = -1
-      species_list(ispecies)%split = .FALSE.
-      species_list(ispecies)%npart_max = 0
       species_list(ispecies)%global_count = 0
       species_list(ispecies)%count_update_step = 0
       species_list(ispecies)%species_type = c_species_id_generic
@@ -359,6 +355,7 @@ CONTAINS
       species_list(ispecies)%ic_df_type = c_ic_df_thermal
       species_list(ispecies)%electron = .FALSE.
       species_list(ispecies)%ionise = .FALSE.
+      species_list(ispecies)%recombine = .FALSE.
       species_list(ispecies)%ionise_to_species = -1
       species_list(ispecies)%release_species = -1
       species_list(ispecies)%n = 0

@@ -16,10 +16,15 @@
 MODULE photons
 #ifdef PHOTONS
 
+  USE collisions
   USE partlist
+  USE utilities
 
   IMPLICIT NONE
 
+  REAL(num), PRIVATE :: sig2cdt_dV_lbw
+  REAL(num), PRIVATE :: cdt_dV
+  REAL(num), PRIVATE :: i_LBW_amp_factor
   SAVE
   REAL(num) :: part_pos_global, gamma_global, eta_global
 
@@ -66,6 +71,11 @@ CONTAINS
         CALL initialise_optical_depth(species_list(ispecies))
       END DO
     END IF
+
+    sig2cdt_dV_lbw = 2.0_num * sigma_lBW_max * c * dt / dx/dy/dz &
+        * LBW_amp_factor
+    cdt_dV = c * dt / dx/dy/dz *  LBW_amp_factor
+    i_LBW_amp_factor = 1.0_num / LBW_amp_factor
 
   END SUBROUTINE setup_qed_module
 
@@ -946,7 +956,7 @@ CONTAINS
 
     samp_photon = .TRUE.
     IF (photon_sample_fraction < 1.0_num) THEN
-      samp_photon = random() < photon_sample_fraction    
+      samp_photon = random() < photon_sample_fraction
     END IF
 
     ! This will only create photons that have energies above a user specified
@@ -969,7 +979,7 @@ CONTAINS
       IF (use_continuous_emission) THEN
         ! Calculate photon weight from synchrotron emission rate
         sync_rate = delta_optical_depth(eta, generating_gamma) ! This already has *dt included
-        new_photon%weight = generating_electron%weight * sync_rate & 
+        new_photon%weight = generating_electron%weight * sync_rate &
                                                        / photon_sample_fraction
       ELSE
         new_photon%weight = generating_electron%weight / photon_sample_fraction
@@ -987,7 +997,7 @@ CONTAINS
 
     REAL(num) :: calculate_photon_energy
     REAL(num), INTENT(IN) :: rand_seed, eta, generating_gamma
-    REAL(num) :: eta_min, chi_tmp, chi_final  
+    REAL(num) :: eta_min, chi_tmp, chi_final
 
     eta_min = 10.0_num**MINVAL(log_eta)
     ! In the classical case, always use the spectrum at minimum eta
@@ -1433,5 +1443,682 @@ CONTAINS
 
   END FUNCTION find_value_from_table
 
+
+
+  SUBROUTINE do_binary_collisions
+
+    INTEGER :: ispecies, jspecies
+    INTEGER(i8) :: ix, iy, iz
+    TYPE(particle_list), POINTER :: p_list1, p_list2
+    TYPE(particle_list) :: new_lbw_electrons, new_lbw_positrons
+
+    !!! Linear Breit-Wheeler
+    IF (use_LBW) THEN
+      DO ispecies = 1, n_species
+        IF (species_list(ispecies)%species_type /= c_species_id_photon) CYCLE
+        DO jspecies = ispecies, n_species
+          IF (species_list(jspecies)%species_type /= c_species_id_photon) CYCLE
+          DO ix = 1, nx
+            DO iy = 1, ny
+              DO iz = 1, nz
+                CALL create_empty_partlist(new_lbw_electrons)
+                CALL create_empty_partlist(new_lbw_positrons)
+                IF (ispecies == jspecies) THEN
+                  p_list1 => species_list(ispecies)%secondary_list(ix,iy,iz)
+
+                  CALL linear_Breit_Wheeler_intra( &
+                      p_list1, ispecies, ix, iy, iz, &
+                      new_lbw_electrons, new_lbw_positrons)
+                ELSE
+                  p_list1 => species_list(ispecies)%secondary_list(ix,iy,iz)
+                  p_list2 => species_list(jspecies)%secondary_list(ix,iy,iz)
+
+                  CALL linear_Breit_Wheeler_inter( &
+                      p_list1, p_list2, ispecies, jspecies, ix, iy, iz, &
+                      new_lbw_electrons, new_lbw_positrons)
+                END IF
+
+                IF (new_lbw_electrons%count > 0) THEN
+                  CALL append_partlist(species_list(lbw_electron_species &
+                      )%secondary_list(ix,iy,iz), new_lbw_electrons)
+                END IF
+                IF (new_lbw_positrons%count > 0) THEN
+                  CALL append_partlist(species_list(lbw_positron_species &
+                      )%secondary_list(ix,iy,iz), new_lbw_positrons)
+                END IF
+              END DO ! do ix = 1, nz
+            END DO ! do iy = 1, ny
+          END DO ! do iz = 1, nx
+        END DO ! jspecies
+      END DO ! ispecies
+    END IF ! if use_LBW
+
+  END SUBROUTINE do_binary_collisions
+
+
+
+  SUBROUTINE linear_Breit_Wheeler_intra(p_list_i, ispe, &
+    ixx, iyy, izz, lbw_elec_list, lbw_posi_list)
+
+    TYPE(particle_list), INTENT(INOUT) :: p_list_i
+    INTEGER, INTENT(IN) :: ispe
+    INTEGER(i8), INTENT(IN) :: ixx, iyy, izz
+    TYPE(particle_list), INTENT(INOUT) :: lbw_elec_list, lbw_posi_list
+    INTEGER(i8) :: icount
+    REAL(num) :: P_max, N_max, cost, sint, rand_phi
+    INTEGER :: N_coll, iu, io
+    TYPE(particle), POINTER :: current_i, current_j
+    REAL(num) :: i_Pmax
+    INTEGER :: N_scattered
+    REAL(num), DIMENSION(3) :: moment_i, moment_j
+    REAL(num) :: pi_abs, pj_abs, pipj, pipj_cos, kappa, en_com2
+    REAL(num) :: weight_i, weight_j
+    REAL(num) :: com_beta, sigma_lbw, P_coll
+    REAL(num) :: Y_ij
+    REAL(num), DIMENSION(3) :: lepton_pos
+    REAL(num), DIMENSION(3) :: beta_v, n_v, p_phot_com
+    REAL(num) :: gamma_v
+    REAL(num), DIMENSION(3) :: e1, e2, e3
+    REAL(num) :: p_lep_com_mag
+    REAL(num), DIMENSION(3) :: p_lep_com, p_elec_lab, p_posi_lab
+    TYPE(particle), POINTER :: new_electron, new_positron
+    TYPE(particle), POINTER :: next_i, next_j
+
+    ! If there aren't enough particles to collide, then don't bother
+    icount = p_list_i%count
+    IF (icount < 2) RETURN
+
+    !!! Determine how many macro-macro pairings are up to be checked
+
+    ! maximal possible collisional probability P_max
+    P_max = sig2cdt_dV_lbw * max_weight(p_list_i)
+
+    ! determine how many macro-particle pairs are up to collide (N_coll)
+    N_max = P_max * icount * (icount - 1.0_num) / 2.0_num
+
+    If (random()< (N_max-FLOOR(N_max))) THEN
+      N_coll = CEILING(N_max)
+    ELSE
+      N_coll = FLOOR(N_max)
+    END IF
+
+    ! Check the collision of these N_coll pairings of macro-photon
+    IF (N_coll <= 0) RETURN
+
+    IF (N_coll > (icount*0.5_num)) THEN
+      IF (rank == 0) THEN
+        DO iu = 1, nio_units ! Print to stdout and to file
+          io = io_units(iu)
+          WRITE(io,*) '*** ERROR ***'
+          WRITE(io,*) 'Too many linear Breit-Wheeler collisions'
+        END DO
+      END IF
+      CALL abort_code(c_err_qed)
+    END IF
+
+    ! Shuffle particle list only if there are pairs to check
+    CALL shuffle_particle_list_random(p_list_i)
+    current_i => p_list_i%head
+    current_j => current_i%next
+    i_Pmax = 1.0_num/P_max
+    N_scattered = 0
+
+    DO WHILE (N_scattered < N_coll)
+      !!! check if four-momentum conservation
+
+      moment_i = current_i%part_p
+      moment_j = current_j%part_p
+
+      ! |p_i| and |p_j|
+      pi_abs = current_i%particle_energy * inv_c
+      pj_abs = current_j%particle_energy * inv_c
+
+      ! |p_i|*|p_j|
+      pipj = pi_abs * pj_abs
+
+      ! |p_i|*|p_j|*(1-cos(theta))
+      pipj_cos = pipj - DOT_PRODUCT(moment_i,moment_j)
+
+      ! kinematic factor (1-cos(theta))
+      kappa = pipj_cos / pipj
+
+      ! dimensionless photon energy squared in c.o.m.
+      en_com2 = pipj_cos * 0.5_num * inv_mc0_sq
+
+      IF (en_com2 < 1.0_num) THEN
+        current_i => current_j%next
+        IF (ASSOCIATED(current_i)) current_j => current_i%next
+        N_scattered = N_scattered +1
+        CYCLE
+      END IF
+
+      !!! calculate collisional probability P_ij/P_max
+      weight_i = current_i%weight
+      weight_j = current_j%weight
+
+      ! normalized lepton velocity in c.o.m. frame
+      com_beta = SQRT(1.0_num - 1.0_num/en_com2)
+
+      ! cross section for the linear BW (without kinematic factor)
+      ! Notice this is a Lorentz invariant.
+      ! Later we will re-use it in the c.o.m frame.
+      sigma_lbw = lbw_cross_sec(com_beta)
+
+      ! collisional probability after modification by P_max
+      P_coll = sigma_lbw * cdt_dV * MAX(weight_i, weight_j) * kappa * i_Pmax
+
+      IF (random() > P_coll) THEN
+        ! These two macro-photons do not collide (due to collisional probability)
+        ! Now move pointer to next particle
+        current_i => current_j%next
+        IF (ASSOCIATED(current_i)) current_j=>current_i%next
+        ! Increment counter
+        N_scattered = N_scattered +1
+      END IF
+
+      ! Now, collide these two macro-photons.
+      ! Pair yield
+      Y_ij = MIN(weight_i, weight_j) * i_LBW_amp_factor
+
+      ! Pair position
+      lepton_pos = (current_i%part_pos + current_j%part_pos)*0.5_num
+
+      ! Lorentz transformation velocity vector from lab to c.o.m. (norm. by c)
+      beta_v = (moment_i + moment_j) / (pi_abs + pj_abs)
+
+      ! Unit vector of this Lorentz transformation velocity
+      n_v = beta_v /SQRT(DOT_PRODUCT(beta_v, beta_v))
+
+      ! Gamma factor of this Lorentz transformatin
+      gamma_v = 1.0_num/SQRT(1.0_num-DOT_PRODUCT(beta_v,beta_v))
+
+      ! Magnitude of lepton momentum in c.o.m. (in SI)
+      p_lep_com_mag = SQRT(en_com2 - 1.0_num)*mc0
+
+      IF (use_LBW_diff) THEN
+        ! Random azimuthal angle in c.o.m.
+        rand_phi = 2.0_num * pi * random()
+
+        ! Random polar angle in c.o.m. (cosine of this random angle)
+        cost = random_polar_lbw(com_beta, sigma_lbw)
+        sint = SQRT(1.0_num - cost**2)
+
+        ! Photon momentum in c.o.m. (in SI)
+        p_phot_com = moment_i + (gamma_v-1.0_num) &
+            * DOT_PRODUCT(moment_i,n_v)*n_v - gamma_v*pi_abs*beta_v
+
+        ! Orthonormal basis (e1, e2, e3) s.t. e1//photon momentum in c.o.m.
+        CALL get_orthonormal(p_phot_com, e1, e2, e3)
+
+        ! Lepton momentum in c.o.m. (in SI)
+        p_lep_com = p_lep_com_mag &
+            * (e1*cost + e2*sint*COS(rand_phi) + e3*sint*SIN(rand_phi))
+      ELSE
+        ! Uniform distribution on sphere surface
+        ! Random azimuthal angle in c.o.m.
+        rand_phi = 2.0_num * pi * random()
+
+        ! Random polar angle
+        cost = 2.0_num * random() - 1.0_num
+        sint = SQRT(1.0_num - cost**2)
+
+        ! Lepton momentum in c.o.m. (in SI)
+        p_lep_com(1) = p_lep_com_mag * sint * COS(rand_phi)
+        p_lep_com(2) = p_lep_com_mag * sint * SIN(rand_phi)
+        p_lep_com(3) = p_lep_com_mag * cost
+      END IF
+
+      ! Electron momentum in lab
+      p_elec_lab = p_lep_com + (gamma_v-1.0_num) * DOT_PRODUCT( &
+          p_lep_com,n_v)*n_v + gamma_v*SQRT(en_com2)*mc0*beta_v
+
+      ! Positron momentum in lab
+      p_posi_lab = - p_lep_com - (gamma_v-1.0_num) * DOT_PRODUCT( &
+          p_lep_com,n_v)*n_v + gamma_v*SQRT(en_com2)*mc0*beta_v
+
+      ! Create linear Breit-Wheeler electron and positron
+      CALL create_particle(new_electron)
+      new_electron%weight   = Y_ij
+      new_electron%part_pos = lepton_pos
+      new_electron%part_p   = p_elec_lab
+      new_electron%optical_depth = reset_optical_depth()
+      CALL add_particle_to_partlist(lbw_elec_list, new_electron)
+
+      CALL create_particle(new_positron)
+      new_positron%weight   = Y_ij
+      new_positron%part_pos = lepton_pos
+      new_positron%part_p   = p_posi_lab
+      new_positron%optical_depth = reset_optical_depth()
+      CALL add_particle_to_partlist(lbw_posi_list, new_positron)
+
+      ! Annihilate photons
+      ! First, store pointers, as photons may be deleted
+      next_i => current_j%next
+      IF (ASSOCIATED(next_i)) next_j => next_i%next
+      ! Now, annihilate photons by decreasing weight, or delete macro-photon
+      IF (lbw_amp_factor > 1.0_num) THEN
+        ! In this case, no macro-photons are deleted
+        current_i%weight = weight_i - Y_ij
+        current_j%weight = weight_j - Y_ij
+      ELSE
+        ! No amplification of the cross-section.
+        ! In this case, need to delete the smaller macro-photon,
+        ! or delete both, if they have same weight
+        IF ((weight_i/weight_j) >1.000001_num) THEN ! photon i is larger
+          current_i%weight = weight_i - Y_ij
+          CALL remove_particle_from_partlist(species_list(ispe &
+              )%secondary_list(ixx,iyy,izz), current_j)
+          DEALLOCATE(current_j)
+        ELSE IF ((weight_j/weight_i) >1.000001_num) THEN ! photon j is larger
+          current_j%weight = weight_j - Y_ij
+          CALL remove_particle_from_partlist(species_list(ispe &
+              )%secondary_list(ixx,iyy,izz), current_i)
+          DEALLOCATE(current_i)
+        ELSE ! photon i and j have same weight
+          CALL remove_particle_from_partlist(species_list(ispe &
+              )%secondary_list(ixx,iyy,izz), current_i)
+          DEALLOCATE(current_i)
+          CALL remove_particle_from_partlist(species_list(ispe &
+              )%secondary_list(ixx,iyy,izz), current_j)
+          DEALLOCATE(current_j)
+        END IF ! comparing weights
+      END IF ! if amplification_factor > 1.0_num
+
+      ! Now, collision of these two macro photons is done,
+      ! Move pointer to next particle
+      current_i => next_i
+      current_j => next_j
+
+      ! Now, collision done, and pointer moved
+      ! Increment counter
+      N_scattered = N_scattered + 1
+    END DO ! While more to scatter
+
+  END SUBROUTINE linear_Breit_Wheeler_intra
+
+
+
+  SUBROUTINE linear_Breit_Wheeler_inter(p_list_i, p_list_j, ispe, jspe, &
+    ixx, iyy, izz, lbw_elec_list, lbw_posi_list)
+
+    TYPE(particle_list), INTENT(INOUT) :: p_list_i, p_list_j
+    INTEGER, INTENT(IN) :: ispe, jspe
+    INTEGER(i8), INTENT(IN) :: ixx, iyy, izz
+    TYPE(particle_list), INTENT(INOUT) :: lbw_elec_list, lbw_posi_list
+    INTEGER(i8) :: icount, jcount
+    REAL(num) :: q_i, q_j, P_max, N_max, cost, sint, rand_phi
+    INTEGER :: N_coll, iu, io
+    TYPE(particle), POINTER :: current_i, current_j
+    REAL(num) :: i_Pmax
+    INTEGER :: N_scattered
+    REAL(num), DIMENSION(3) :: moment_i, moment_j
+    REAL(num) :: pi_abs, pj_abs, pipj, pipj_cos, kappa, en_com2
+    REAL(num) :: weight_i, weight_j
+    REAL(num) :: com_beta, sigma_lbw, P_coll
+    REAL(num) :: Y_ij
+    REAL(num), DIMENSION(3) :: lepton_pos
+    REAL(num), DIMENSION(3) :: beta_v, n_v, p_phot_com
+    REAL(num) :: gamma_v
+    REAL(num), DIMENSION(3) :: e1, e2, e3
+    REAL(num) :: p_lep_com_mag
+    REAL(num), DIMENSION(3) :: p_lep_com, p_elec_lab, p_posi_lab
+    TYPE(particle), POINTER :: new_electron, new_positron
+    TYPE(particle), POINTER :: next_i, next_j
+
+    ! If there aren't enough particles to collide, then don't bother
+    icount = p_list_i%count
+    jcount = p_list_j%count
+    IF (icount < 1 .OR. jcount < 1) RETURN
+
+    !!! Determine how many macro-macro pairings are up to be checked
+    ! maximal possible collisional probability P_max
+    q_i   = max_weight(p_list_i)
+    q_j   = max_weight(p_list_j)
+    P_max = sig2cdt_dV_lbw * MAX(q_i, q_j)
+
+    ! determine how many macro-particle pairs are up to collide (N_coll)
+    N_max = P_max * icount * jcount
+
+    If (random()< (N_max-FLOOR(N_max))) THEN
+      N_coll = CEILING(N_max)
+    ELSE
+      N_coll = FLOOR(N_max)
+    END IF
+
+    ! Check the collision of these N_coll pairings of macro-photon
+    IF (N_coll <= 0) RETURN
+
+    IF (N_coll > MIN(icount, jcount)) THEN
+      IF (rank == 0) THEN
+        DO iu = 1, nio_units ! Print to stdout and to file
+          io = io_units(iu)
+          WRITE(io,*) '*** ERROR ***'
+          WRITE(io,*) 'Too many linear Breit-Wheeler collisions'
+        END DO
+      END IF
+      CALL abort_code(c_err_qed)
+    END IF
+
+    ! Shuffle particle list only if there are pairs to check
+    CALL shuffle_particle_list_random(p_list_i)
+    CALL shuffle_particle_list_random(p_list_j)
+    current_i => p_list_i%head
+    current_j => p_list_j%head
+    i_Pmax = 1.0_num/P_max
+    N_scattered = 0
+
+    DO WHILE (N_scattered < N_coll)
+      !!! check if four-momentum conservation
+
+      moment_i = current_i%part_p
+      moment_j = current_j%part_p
+
+      ! |p_i| and |p_j|
+      pi_abs = current_i%particle_energy * inv_c
+      pj_abs = current_j%particle_energy * inv_c
+
+      ! |p_i|*|p_j|
+      pipj = pi_abs * pj_abs
+
+      ! |p_i|*|p_j|*(1-cos(theta))
+      pipj_cos = pipj - DOT_PRODUCT(moment_i,moment_j)
+
+      ! kinematic factor (1-cos(theta))
+      kappa = pipj_cos / pipj
+
+      ! dimensionless photon energy squared in c.o.m.
+      en_com2 = pipj_cos * 0.5_num * inv_mc0_sq
+
+      IF (en_com2 < 1.0_num) THEN
+        current_i => current_i%next
+        current_j => current_j%next
+        N_scattered = N_scattered +1
+        CYCLE
+      END IF
+
+      !!! calculate collisional probability P_ij/P_max
+      weight_i = current_i%weight
+      weight_j = current_j%weight
+
+      ! normalized lepton velocity in c.o.m. frame
+      com_beta = SQRT(1.0_num - 1.0_num/en_com2)
+
+      ! cross section for the linear BW (without kinematic factor)
+      ! Notice this is a Lorentz invariant.
+      ! Later we will re-use it in the c.o.m frame.
+      sigma_lbw = lbw_cross_sec(com_beta)
+
+      ! collisional probability after modification by P_max
+      P_coll = sigma_lbw * cdt_dV * MAX(weight_i, weight_j) * kappa * i_Pmax
+
+      IF (random() > P_coll) THEN
+        ! These two macro-photons do not collide (due to collisional probability)
+        ! Now move pointer to next particle
+        ! (notice in this case, next_i and next_j are not defined)
+        current_i => current_i%next
+        current_j => current_j%next
+        ! Increment counter
+        N_scattered = N_scattered + 1
+        CYCLE
+      END IF
+
+      ! Now, collide these two macro-photons.
+      ! Pair yield
+      Y_ij = MIN(weight_i, weight_j) * i_LBW_amp_factor
+
+      ! Pair position
+      lepton_pos = (current_i%part_pos + current_j%part_pos)*0.5_num
+
+      ! Lorentz transformation velocity vector from lab to c.o.m. (norm. by c)
+      beta_v = (moment_i + moment_j) / (pi_abs + pj_abs)
+
+      ! Unit vector of this Lorentz transformation velocity
+      n_v = beta_v /SQRT(DOT_PRODUCT(beta_v, beta_v))
+
+      ! Gamma factor of this Lorentz transformatin
+      gamma_v = 1.0_num/SQRT(1.0_num-DOT_PRODUCT(beta_v,beta_v))
+
+      ! Magnitude of lepton momentum in c.o.m. (in SI)
+      p_lep_com_mag = SQRT(en_com2 - 1.0_num)*mc0
+
+      IF (use_LBW_diff) THEN
+        ! Random azimuthal angle in c.o.m.
+        rand_phi = 2.0_num * pi * random()
+
+        ! Random polar angle in c.o.m. (cosine of this random angle)
+        cost = random_polar_lbw(com_beta, sigma_lbw)
+        sint = SQRT(1.0_num - cost**2)
+
+        ! Photon momentum in c.o.m. (in SI)
+        p_phot_com = moment_i + (gamma_v-1.0_num) &
+            * DOT_PRODUCT(moment_i,n_v)*n_v - gamma_v*pi_abs*beta_v
+
+        ! Orthonormal basis (e1, e2, e3) s.t. e1//photon momentum in c.o.m.
+        CALL get_orthonormal(p_phot_com, e1, e2, e3)
+
+        ! Lepton momentum in c.o.m. (in SI)
+        p_lep_com = p_lep_com_mag &
+            * (e1*cost + e2*sint*COS(rand_phi) + e3*sint*SIN(rand_phi))
+      ELSE
+        ! Uniform distribution on sphere surface
+        ! Random azimuthal angle in c.o.m.
+        rand_phi = 2.0_num * pi * random()
+
+        ! Random polar angle
+        cost = 2.0_num * random() - 1.0_num
+        sint = SQRT(1.0_num - cost**2)
+
+        ! Lepton momentum in c.o.m. (in SI)
+        p_lep_com(1) = p_lep_com_mag * sint * COS(rand_phi)
+        p_lep_com(2) = p_lep_com_mag * sint * SIN(rand_phi)
+        p_lep_com(3) = p_lep_com_mag * cost
+      END IF
+
+      ! Electron momentum in lab
+      p_elec_lab = p_lep_com + (gamma_v-1.0_num) * DOT_PRODUCT( &
+          p_lep_com,n_v)*n_v + gamma_v*SQRT(en_com2)*mc0*beta_v
+
+      ! Positron momentum in lab
+      p_posi_lab = - p_lep_com - (gamma_v-1.0_num) * DOT_PRODUCT( &
+          p_lep_com,n_v)*n_v + gamma_v*SQRT(en_com2)*mc0*beta_v
+
+      ! Create linear Breit-Wheeler electron and positron
+      CALL create_particle(new_electron)
+      new_electron%weight   = Y_ij
+      new_electron%part_pos = lepton_pos
+      new_electron%part_p   = p_elec_lab
+      new_electron%optical_depth = reset_optical_depth()
+      CALL add_particle_to_partlist(lbw_elec_list, new_electron)
+
+      CALL create_particle(new_positron)
+      new_positron%weight   = Y_ij
+      new_positron%part_pos = lepton_pos
+      new_positron%part_p   = p_posi_lab
+      new_positron%optical_depth = reset_optical_depth()
+      CALL add_particle_to_partlist(lbw_posi_list, new_positron)
+
+      ! Annihilate photons
+      ! First, store pointers, as photons may be deleted
+      next_i => current_i%next
+      next_j => current_j%next
+
+      ! Now, annihilate photons by decreasing weight, or delete macro-photon
+      IF (lbw_amp_factor > 1.0_num) THEN
+        ! In this case, no macro-photons are deleted
+        current_i%weight = weight_i - Y_ij
+        current_j%weight = weight_j - Y_ij
+      ELSE
+        ! No amplification of the cross-section.
+        ! In this case, need to delete the smaller macro-photon,
+        ! or delete both, if they have same weight
+        IF ((weight_i/weight_j) >1.000001_num) THEN ! photon i is larger
+          current_i%weight = weight_i - Y_ij
+          CALL remove_particle_from_partlist(species_list(jspe &
+              )%secondary_list(ixx,iyy,izz), current_j)
+          DEALLOCATE(current_j)
+        ELSE IF ((weight_j/weight_i) >1.000001_num) THEN ! photon j is larger
+          current_j%weight = weight_j - Y_ij
+          CALL remove_particle_from_partlist(species_list(ispe &
+              )%secondary_list(ixx,iyy,izz), current_i)
+          DEALLOCATE(current_i)
+        ELSE ! photon i and j have same weight, delete both
+          CALL remove_particle_from_partlist(species_list(ispe &
+              )%secondary_list(ixx,iyy,izz), current_i)
+          DEALLOCATE(current_i)
+          CALL remove_particle_from_partlist(species_list(jspe &
+              )%secondary_list(ixx,iyy,izz), current_j)
+          DEALLOCATE(current_j)
+        END IF ! comparing weights
+      END IF ! if lbw_amp_factor > 1.0
+
+      ! Now, collision of these two macro photons is done,
+      ! Move pointer to next particle
+      current_i => next_i
+      current_j => next_j
+
+      ! Now, collision done, and pointer moved
+      ! Increment counter
+      N_scattered = N_scattered + 1
+    END DO ! While more to scatter
+
+  END SUBROUTINE linear_Breit_Wheeler_inter
+
+
+
+  FUNCTION max_weight(p_list)
+
+    TYPE(particle_list), INTENT(IN) :: p_list
+    TYPE(particle), POINTER :: current
+    REAL(num) :: max_weight
+
+    max_weight = 0.0_num
+
+    current => p_list%head
+
+    DO WHILE (ASSOCIATED(current))
+
+      max_weight = MAX(max_weight, current%weight)
+      current => current%next
+
+    END DO
+
+  END FUNCTION max_weight
+
+
+
+  SUBROUTINE get_orthonormal(vec, e1, e2, e3)
+
+    ! output a set of 3D orthonormal basis (e1,e2,e3) s.t. e1 // vec
+    REAL(num), DIMENSION(3), INTENT(IN) :: vec
+    REAL(num), DIMENSION(3), INTENT(OUT) :: e1, e2, e3
+
+    e1 = vec/ SQRT(DOT_PRODUCT(vec, vec))
+
+    IF (ABS(e1(2))<=c_tiny .AND. ABS(e1(3))<=c_tiny) THEN
+      ! if e1 // (1,0,0), cross product e1 with (0,1,0) to get e2
+      e2(1) = -e1(3)
+      e2(2) = 0
+      e2(3) = e1(1)
+    ELSE
+    ! cross product e1 with (1,0,0) to get e2
+      e2(1) = 0
+      e2(2) = e1(3)
+      e2(3) = -e1(2)
+    END IF
+      e2 = e2 / SQRT(DOT_PRODUCT(e2, e2))
+
+      e3(1) = e1(2)*e2(3) - e1(3)*e2(2)
+      e3(2) = e1(3)*e2(1) - e1(1)*e2(3)
+      e3(3) = e1(1)*e2(2) - e1(2)*e2(1)
+
+  END SUBROUTINE get_orthonormal
+
+
+
+  FUNCTION lbw_cross_sec(ze)
+
+    REAL(num), INTENT(IN) :: ze
+    REAL(num) :: lbw_cross_sec
+
+    ! input ze is dimensionless lepton velocity in c.o.m.
+
+    lbw_cross_sec = half_pire2 * (1.0_num - ze**2) &
+      * (-2.0_num*ze*(2.0_num-ze**2) + (3.0_num-ze**4) &
+      * LOG((1.0_num+ze)/(1.0_num-ze)))
+
+  END FUNCTION lbw_cross_sec
+
+
+
+  FUNCTION random_polar_lbw(v, sigma)
+
+    ! This function generates (the cosine of) a random polar angle
+    ! following the distribution of the differential cross section
+    ! of the lbw process in the c.o.m. frame, by inverse transform
+    ! sampling method using bisection method.
+
+    REAL(num), INTENT(IN) :: v, sigma
+    REAL(num) :: rnd_cdf
+    REAL(num) :: lb, ub, mid_point
+    REAL(num) :: cdf_err_lb, cdf_err_mp
+    REAL(num) :: random_polar_lbw
+
+    rnd_cdf = random()
+
+    ! upper bound, lower bound, and mid point of bisection method.
+    lb = -1.0_num
+    ub = 1.0_num
+    mid_point = 0.0_num
+
+    cdf_err_lb = lbw_polar_cdf_err(lb,        rnd_cdf, v, sigma)
+    cdf_err_mp = lbw_polar_cdf_err(mid_point, rnd_cdf, v, sigma)
+
+    DO WHILE (ABS(cdf_err_mp) > tolerance_cdf .AND. &
+        (ABS(ub-lb)>tolerance_cos_angle))
+      IF (ABS(SIGN(1.0_num, cdf_err_lb) - SIGN(1.0_num, cdf_err_mp)) &
+          < 0.5_num) THEN
+        ! lb and mp have same sign
+        ! meaning correct value is between mp and ub
+        lb = mid_point
+        cdf_err_lb = lbw_polar_cdf_err(lb, rnd_cdf, v, sigma)
+      ELSE
+        ! lb and mp have different sign
+        ! meaning correct value is between lb and mp
+        ub = mid_point
+      END IF
+
+      mid_point = (lb+ub)*0.5_num
+      cdf_err_mp = lbw_polar_cdf_err(mid_point, rnd_cdf, v, sigma)
+    END DO
+
+    random_polar_lbw = mid_point
+
+  END FUNCTION random_polar_lbw
+
+
+  FUNCTION lbw_polar_cdf_err(mu, rnd, b, sig)
+
+    ! error relative to the random cummulative distribution function
+    ! for the polar angle of lbw differential cross-section
+    REAL(num), INTENT(IN) :: mu, rnd, b, sig
+    REAL(num) :: temp, big_bracket
+    REAL(num) :: term1, term2, term3, term4
+    REAL(num) :: lbw_polar_cdf_err
+
+    temp  = 1.0_num - b**2
+    term1 = 1.0_num + b * mu
+    term2 = 1.0_num - b * mu
+    term3 = 1.0_num + b
+    term4 = 1.0_num - b
+
+    big_bracket = 2*b*(1.0_num-mu) + (3.0_num-b**4) &
+      * LOG(term1*term4/term2/term3) + temp**2 &
+      * (1.0_num/term1 - 1.0_num/term2 - 1.0_num/term3 + 1.0_num/term4)
+
+    ! the minus sign come from the definition for solid angle Omega in
+    ! eq. (1) of ppcf. 60. 104001 (2018) by Ribeyre et. al.
+    lbw_polar_cdf_err = - quarter_pire2 * temp * big_bracket / sig - rnd
+
+  END FUNCTION lbw_polar_cdf_err
 #endif
 END MODULE photons

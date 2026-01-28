@@ -141,6 +141,9 @@ CONTAINS
 #ifdef NO_IO
     found = .TRUE.
 #endif
+#ifdef TRANSITION_RATES
+    found = .TRUE.
+#endif
 #ifdef DELTAF_METHOD
     found = .TRUE.
 #endif
@@ -210,6 +213,8 @@ CONTAINS
 #ifdef PER_PARTICLE_CHARGE_MASS
     defines = IOR(defines, c_def_per_particle_chargemass)
     WRITE(*,*) 'Per particle charge and mass -DPER_PARTICLE_CHARGE_MASS'
+    WRITE(*,*) 'WARNING: This feature has been deprecated and will ', &
+        'be removed in v4.21.0'
 #endif
 #ifdef HIGH_ORDER_SMOOTHING
     defines = IOR(defines, c_def_high_order_smoothing)
@@ -248,6 +253,10 @@ CONTAINS
 #ifdef NO_IO
     ! There is no need to add a c_def for this since no I/O occurs.
     WRITE(*,*) 'Perform no I/O -DNO_IO'
+#endif
+#ifdef TRANSITION_RATES
+    defines = IOR(defines, c_def_transition_rates)
+    WRITE(*,*) 'Save particle ionisation/recombination rates -DTRANSITION_RATES'
 #endif
 #ifdef DELTAF_METHOD
     defines = IOR(defines, c_def_deltaf_method)
