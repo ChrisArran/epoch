@@ -45,6 +45,10 @@ CONTAINS
       use_radiation_reaction = .TRUE.
       produce_photons = .FALSE.
       photon_dynamics = .FALSE.
+      use_binary_collisions = .FALSE.
+      use_LBW = .FALSE.
+      use_LBW_diff = .TRUE.
+      LBW_amp_factor = 1.0_num
     END IF
 #endif
 
@@ -57,6 +61,7 @@ CONTAINS
     INTEGER :: io, iu
 #ifdef PHOTONS
     LOGICAL :: exists
+    INTEGER :: j
 
     IF (deck_state == c_ds_first) RETURN
 
@@ -74,6 +79,24 @@ CONTAINS
     END IF
 
     IF (use_qed) need_random_state = .TRUE.
+
+    use_binary_collisions = use_LBW
+
+    IF (use_binary_collisions) THEN
+      DO j = 1, n_species
+        IF (species_list(j)%species_type == c_species_id_photon) THEN
+          species_list(j)%make_secondary_list = .TRUE.
+        END IF
+        IF (species_list(j)%species_type == c_species_id_electron) THEN
+          species_list(j)%make_secondary_list = .TRUE.
+        END IF
+        IF (species_list(j)%species_type == c_species_id_positron) THEN
+          species_list(j)%make_secondary_list = .TRUE.
+        END IF
+    END DO
+  END IF
+
+  lbw_amp_factor = MAX(lbw_amp_factor, 1.0_num)
 #else
     IF (use_qed) THEN
       IF (rank == 0) THEN
@@ -87,7 +110,6 @@ CONTAINS
       CALL abort_code(c_err_pp_options_missing)
     END IF
 #endif
-
   END SUBROUTINE qed_deck_finalise
 
 
@@ -169,6 +191,21 @@ CONTAINS
         .OR. str_cmp(element, 'photon_downsampling')) THEN
       photon_sample_fraction = as_real_print(value, element, errcode)
       IF (photon_sample_fraction > 1.0) photon_sample_fraction = 1.0
+      RETURN
+    END IF
+
+    IF(str_cmp(element, 'linear_breit_wheeler')) THEN
+      use_LBW = as_logical_print(value, element, errcode)
+      RETURN
+    END IF
+
+    IF(str_cmp(element, 'LBW_differential_cross')) THEN
+      use_LBW_diff = as_logical_print(value, element, errcode)
+      RETURN
+    END IF
+
+    IF (str_cmp(element, 'amplify_LBW_factor')) THEN
+      LBW_amp_factor = as_real_print(value, element, errcode)
       RETURN
     END IF
 

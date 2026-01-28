@@ -1983,6 +1983,35 @@ CONTAINS
       RETURN
     END IF
 
+    IF (str_cmp(value, 'LBW_electron')) THEN
+      species_list(species_id)%charge = -q0 
+      species_list(species_id)%mass = m0
+      species_list(species_id)%species_type = c_species_id_electron
+      species_charge_set(species_id) = .TRUE.
+      species_list(species_id)%electron = .TRUE.
+#ifdef PHOTONS
+      lbw_electron_species = species_id
+#else
+      IF (use_qed .OR. use_bremsstrahlung) errcode = c_err_generic_warning
+#endif
+      species_list(species_id)%atomic_no = 0
+      species_list(species_id)%atomic_no_set = .TRUE. 
+      RETURN 
+    END IF
+
+    IF (str_cmp(value, 'LBW_positron')) THEN
+      species_list(species_id)%charge = q0
+      species_list(species_id)%mass = m0
+      species_charge_set(species_id) = .TRUE.
+      species_list(species_id)%species_type = c_species_id_positron
+#ifdef PHOTONS
+      lbw_positron_species = species_id
+#endif
+      species_list(species_id)%atomic_no = 0
+      species_list(species_id)%atomic_no_set = .TRUE.
+      RETURN
+    END IF
+  
     ! Breit Wheeler process electron
     IF (str_cmp(value, 'bw_electron') &
         .OR. str_cmp(value, 'breit_wheeler_electron')) THEN
